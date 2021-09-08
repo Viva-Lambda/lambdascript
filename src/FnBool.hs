@@ -1,0 +1,21 @@
+-- standard boolean expression functions
+module FnBool where
+
+import Expression
+
+boolBinExprFn :: (Bool -> Bool -> Bool) -> Expr -> Expr -> Expr
+boolBinExprFn fn (LiteralExpr (BLit a) i) (LiteralExpr (BLit b) _) =
+    LiteralExpr ( BLit ( a `fn` b) ) i
+
+boolBinExprFn _ a b =
+    let linea = debugExpr a
+        lineb = debugExpr b
+        msg = "Expressions: " ++ linea ++ " " ++ lineb
+        msg2 = msg ++ " must be boolean expressions such as true, false"
+    in error msg2
+
+andBool :: Expr -> Expr -> Expr
+andBool a b = boolBinExprFn (&&) a b
+
+orBool :: Expr -> Expr -> Expr
+orBool a b = boolBinExprFn (||) a b

@@ -1,0 +1,3 @@
+; this is a hello world script for
+; lambdascript
+(seq "Hello World")

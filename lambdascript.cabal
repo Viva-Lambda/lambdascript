@@ -1,0 +1,83 @@
+cabal-version: 1.12
+
+-- This file has been generated from package.yaml by hpack version 0.34.4.
+--
+-- see: https://github.com/sol/hpack
+
+name:           lambdascript
+version:        0.1.0.0
+description:    Please see the README on Github at <https://github.com/Viva-Lambda/lambdascript#readme>
+homepage:       https://github.com/VivaLambda/lambdascript#readme
+bug-reports:    https://github.com/VivaLambda/lambdascript/issues
+author:         Viva Lambda
+maintainer:     76657254+Viva-Lambda@users.noreply.github.com
+copyright:      2021 Viva Lambda and D-K-E
+license:        BSD3
+license-file:   LICENSE
+build-type:     Simple
+extra-source-files:
+    README.md
+    ChangeLog.md
+
+source-repository head
+  type: git
+  location: https://github.com/VivaLambda/lambdascript
+
+library
+  exposed-modules:
+      ASTree
+      Evaluator
+      Expression
+      FnBool
+      FnNumber
+      Lexer
+      Parser
+  other-modules:
+      Paths_lambdascript
+  hs-source-dirs:
+      src
+  ghc-options: -Wall
+  build-depends:
+      HUnit >=1.6.2.0
+    , base >=4.8.2.0
+    , containers >=0.5.6.2
+    , mtl >=2.2.2
+  default-language: Haskell2010
+
+executable lambdascript.out
+  main-is: Main.hs
+  other-modules:
+      Paths_lambdascript
+  hs-source-dirs:
+      app
+  ghc-options: -Wall -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      HUnit >=1.6.2.0
+    , base >=4.8.2.0
+    , containers >=0.5.6.2
+    , lambdascript
+    , mtl >=2.2.2
+  default-language: Haskell2010
+
+test-suite lambdascript-haskell-test
+  type: exitcode-stdio-1.0
+  main-is: Main.hs
+  other-modules:
+      FuncExprTests
+      IfExprTests
+      LoopExprTests
+      SeqExprTests
+      Spec
+      UtilSpec
+      Paths_lambdascript
+  hs-source-dirs:
+      test
+      test/iftests
+  ghc-options: -Wall -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      HUnit
+    , base >=4.8.2.0
+    , containers >=0.5.6.2
+    , lambdascript
+    , mtl >=2.2.2
+  default-language: Haskell2010

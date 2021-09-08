@@ -1,0 +1,57 @@
+name:                lambdascript
+version:             0.1.0.0
+github:              VivaLambda/lambdascript
+license:             BSD3
+author:              Viva Lambda
+maintainer:          76657254+Viva-Lambda@users.noreply.github.com
+copyright:           2021 Viva Lambda and D-K-E
+
+extra-source-files:
+- README.md
+- ChangeLog.md
+
+# Metadata used when publishing your package
+# synopsis:            Short description of your package
+# category:            Web
+
+# To avoid duplicated efforts in documentation and dealing with the
+# complications of embedding Haddock markup inside cabal files, it is
+# common to point users to the README.md file.
+description:         Please see the README on Github at
+    <https://github.com/Viva-Lambda/lambdascript#readme>
+
+dependencies:
+  - base >= 4.8.2.0
+  - containers >= 0.5.6.2
+  - HUnit >= 1.6.2.0
+  - mtl >= 2.2.2
+
+ghc-options:
+- -Wall
+
+library:
+  source-dirs: src
+
+executables:
+  lambdascript.out:
+    main:                Main.hs
+    source-dirs:         app
+    dependencies: lambdascript
+
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+
+tests:
+  lambdascript-haskell-test:
+    main:                Main.hs
+    source-dirs:         [test, test/iftests]
+    dependencies:
+        - HUnit
+        - lambdascript
+
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
