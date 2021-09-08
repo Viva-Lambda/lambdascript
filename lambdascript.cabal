@@ -67,8 +67,6 @@ test-suite lambdascript-haskell-test
       IfExprTests
       LoopExprTests
       SeqExprTests
-      Spec
-      UtilSpec
       Paths_lambdascript
   hs-source-dirs:
       test
