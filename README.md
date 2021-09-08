@@ -1,6 +1,7 @@
-# LambdaScript
+# LambdaScript - ΛΣ
 
-A tiny turing complete language with lisp syntax. 
+A tiny turing complete language with lisp syntax.
+
 
 We only have the following data types:
 
