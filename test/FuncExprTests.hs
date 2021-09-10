@@ -18,7 +18,7 @@ fnstr = "(seq (fn threearg \n\
 test1 :: Test
 test1 = TestCase ( 
         assertEqual ("for seq expression " ++ fnstr) True 
-        (exprCheck fnstr (LiteralExpr (NumLit 6.0) 0))
+        (exprCheck fnstr (LiteralExpr (NumLit 6.0 (mkTokInfo 0 0 "" ""))))
     )
 
 

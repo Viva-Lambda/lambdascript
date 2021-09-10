@@ -1,12 +1,13 @@
 module LoopExprTests(looptests) where
 
 import Lexer
-import Parser
+-- import Parser
+--import CombinedParser
 import Evaluator
 import Expression
 import Test.HUnit
 
-import qualified Data.Map as DMap
+-- import qualified Data.Map as DMap
 
 loopstr :: String
 loopstr = "(seq (def x 0.0)\
@@ -19,7 +20,10 @@ loopstr = "(seq (def x 0.0)\
 test1 :: Test
 test1 = TestCase ( 
         assertEqual ("for loop expression " ++ loopstr) True 
-        (exprCheck loopstr (LiteralExpr (NumLit 10.0) 0))
+        (exprCheck 
+            loopstr 
+            (LiteralExpr (NumLit 10.0 (mkTokInfo 0 0 "" "")))
+        )
     )
 
 

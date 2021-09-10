@@ -1,7 +1,8 @@
 module SeqExprTests(seqtests) where
 
 import Lexer
-import Parser
+-- import Parser
+import CombinedParser
 import Evaluator
 import Expression
 import Test.HUnit
@@ -15,7 +16,7 @@ test1 :: Test
 test1 = TestCase (
     assertEqual
     ("for seq expression " ++ seqString)
-    True (exprCheck seqString (LiteralExpr (NumLit 5.0) 0))
+    True (exprCheck seqString (LiteralExpr (NumLit 5.0 (mkTokInfo 0 0 "" ""))))
     )
 
 seqString2 :: String
@@ -27,7 +28,7 @@ test2 :: Test
 test2 = TestCase (
     assertEqual
     ("for seq expression " ++ seqString2)
-    True (exprCheck seqString2 (LiteralExpr (NumLit 2.0) 0))
+    True (exprCheck seqString2 (LiteralExpr (NumLit 2.0 (mkTokInfo 0 0 "" ""))))
     )
 
 seqtests :: Test

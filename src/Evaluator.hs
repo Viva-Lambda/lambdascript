@@ -1,7 +1,8 @@
 -- evaluator module for our parser
 module Evaluator where
 import Lexer
-import Parser
+-- import Parser
+import CombinedParser
 import Expression
 import FnNumber
 import FnBool
@@ -40,13 +41,13 @@ removeSymbol str = do
     return ()
 
 addIdentifierEval :: Identifier -> Expr -> Evaluator Expr
-addIdentifierEval (IdExpr a _) expr = do
+addIdentifierEval (IdExpr (VName a _) _ _) expr = do
     value <- evaluate expr
     addSymbol a value
     return value
 
 removeId :: Identifier -> Evaluator Expr
-removeId (IdExpr a _) = do
+removeId (IdExpr (VName a _) _ _) = do
     removeSymbol a
     return EndExpr
 
@@ -67,11 +68,11 @@ addIdsExpZipEval (ie:ies) = do
 
 -- check for expression types
 isNumericExpr :: Expr -> Bool
-isNumericExpr (LiteralExpr (NumLit _) _) = True
+isNumericExpr (LiteralExpr (NumLit _ _)) = True
 isNumericExpr _ = False
 
 isBoolExpr :: Expr -> Bool
-isBoolExpr (LiteralExpr (BLit _ ) _) = True
+isBoolExpr (LiteralExpr (BLit _ _) ) = True
 isBoolExpr _ = False
 
 -- default functions
@@ -91,9 +92,9 @@ foldlSequence SeqExpr {parent = a, child = b} = do
 evaluate :: Expr -> Evaluator Expr
 
 -- evaluate literals
-evaluate (LiteralExpr (BLit a) i) = return $ LiteralExpr (BLit a ) i
-evaluate (LiteralExpr (NumLit a) i) = return $ LiteralExpr (NumLit a) i
-evaluate (LiteralExpr (StrLit a) i) = return $ LiteralExpr (StrLit a) i
+evaluate (LiteralExpr (BLit a i) ) = return $ LiteralExpr (BLit a i)
+evaluate (LiteralExpr (NumLit a i) ) = return $ LiteralExpr (NumLit a i)
+evaluate (LiteralExpr (StrLit a i) ) = return $ LiteralExpr (StrLit a i)
 
 {-
 let p1 = "true"
@@ -104,7 +105,7 @@ let p4 = "\"dsklmkm\""
 
 -- evaluate assignment statement
 evaluate (StmtExpr (AssignStmt a) _) =
-    let (Assigner (IdExpr aid _) aexp) = a
+    let (Assigner (IdExpr (VName aid _) _ _) aexp) = a
     in do
         expr <- evaluate aexp
         addSymbol aid expr
@@ -115,7 +116,7 @@ evaluate (StmtExpr (SeqStmt a) _) = foldlSequence a
 
 -- evaluate procedure definition statement
 evaluate (StmtExpr (ProcDefStmt a) line) =
-    let DefineProc {procname = (IdExpr pname _),
+    let DefineProc {procname = (IdExpr (VName pname _) _ _),
                     arguments = _,
                     body = _} = a
     in do 
@@ -128,11 +129,11 @@ evaluate (StmtExpr (CondStmt a) line) =
               consequent = conseq,
               alternate = alter} = a
     in case ct of
-        (CTestId (IdExpr ide ln)) -> do
+        (CTestVar (VName ide (TokInfo ln col _ _))) -> do
             expr <- lookUp ide ln
             condVal <- evaluate expr
             case condVal of
-                (LiteralExpr lit _) -> eval lit conseq alter
+                (LiteralExpr lit) -> eval lit conseq alter
                 _ -> let msg = "Variable must evaluate to a literal value"
                          msg2 = msg ++ " at line " ++ show ln
                      in error msg2
@@ -141,17 +142,17 @@ evaluate (StmtExpr (CondStmt a) line) =
             result <- evaluate (CallExpr p line)
             case result of
                 --
-                (LiteralExpr lit _) -> eval lit conseq alter
+                (LiteralExpr lit) -> eval lit conseq alter
                 _ -> let msg = "Procedure must evaluate to a literal value"
                          msg2 = msg ++ " at line " ++ show line
                      in error msg2
-        where eval (BLit b) co alt = if b
+        where eval (BLit b _) co alt = if b
                                      then foldlSequence co
                                      else foldlSequence alt
-              eval (StrLit str) co alt = if (length str) > 0
+              eval (StrLit str _) co alt = if (length str) > 0
                                          then foldlSequence co
                                          else foldlSequence alt
-              eval (NumLit n) co alt = if n > 0
+              eval (NumLit n _) co alt = if n > 0
                                        then foldlSequence co
                                        else foldlSequence alt
 
@@ -163,33 +164,33 @@ evaluate (StmtExpr (LoopStmt loopE) line) =
         case ct of
             -- evaluate loop condition
             -- loop condition is variable
-            (CTestId (IdExpr ids ln)) -> do
+            (CTestVar (VName ids (TokInfo ln col i j))) -> do
                 expr <- lookUp ids ln
                 case expr of
-                    (LiteralExpr lit _) -> eval loopE lit line
-                    _ -> let msg = debugIdentifier (IdExpr ids ln)
+                    (LiteralExpr lit ) -> eval loopE lit
+                    _ -> let msg = debugVarName (VName ids (TokInfo ln col i j))
                              msg2 = msg ++ " must evaluate to a literal value"
                          in error msg2
-            (CTestLit lit) -> eval loopE lit line
+            (CTestLit lit) -> eval loopE lit
             (CTestProc p) -> do
-                result <- evaluate (CallExpr p line)
+                result <- evaluate (CallExpr p (procCallInfo p))
                 case result of
                     --
-                    (LiteralExpr lit _) -> eval loopE lit line
+                    (LiteralExpr lit) -> eval loopE lit
                     _ -> let msg = debugProcCall p
-                             msg2 = msg ++ " at line " ++ show line
+                             msg2 = msg ++ " at line " ++ debugTokenInfo (procCallInfo p)
                              msg3 = msg2 ++ " must evaluate to a literal value"
                          in error msg3
-        where eval a (BLit b) ln = 
-                let loopExpr = StmtExpr (LoopStmt a) ln
+        where eval a (BLit b tok) =
+                let loopExpr = StmtExpr (LoopStmt a) tok
                     Looper {ltest = _, lconsequent = lseq} = a
                 in evalif b loopExpr lseq
-              eval a (StrLit b) ln =
-                let loopExpr = StmtExpr (LoopStmt a) ln
+              eval a (StrLit b tok) =
+                let loopExpr = StmtExpr (LoopStmt a) tok
                     Looper {ltest = _, lconsequent = lseq} = a
                 in evalif (length b > 0) loopExpr lseq
-              eval a (NumLit b) ln =
-                let loopExpr = StmtExpr (LoopStmt a) ln
+              eval a (NumLit b tok) =
+                let loopExpr = StmtExpr (LoopStmt a) tok
                     Looper {ltest = _, lconsequent = lseq} = a
                 in evalif (b > 0.0) loopExpr lseq
               evalif b lexp ss =
@@ -201,20 +202,22 @@ evaluate (StmtExpr (LoopStmt loopE) line) =
 
 -- evaluate function call expression
 evaluate (CallExpr procCall i) = -- (+ 1 2) - (set var 456)
-    let (Proc (OpName (IdExpr op ln)) pseq) = procCall
+    -- type checking can be done here
+    -- IdExpr has another field (TName) registering types of variables
+    let (Proc (OpName (VName op info)) pseq) = procCall
     in
         case pseq of
             -- evaluate unary operations
-            (OprExpr [exp1]) -> evalUn op exp1 i
+            (OprExpr [exp1]) -> evalUn op exp1 info
             -- basic binary arithmetic operations
             (OprExpr [exp1, exp2]) -> do
                 f <- evaluate exp1
                 s <- evaluate exp2
-                evalBin op f s i
+                evalBin op f s info
             -- call expression of a defined function
-            (OprExpr exps) -> evalNarg op i exps
-    where evalNarg funcName line es = do
-            procExpr <- lookUp funcName i
+            (OprExpr exps) -> evalNarg op info exps
+    where evalNarg funcName tinfo es = do
+            procExpr <- lookUp funcName (lineNumber tinfo)
             let (StmtExpr (ProcDefStmt a) _) = procExpr
                 DefineProc { procname = _,
                              arguments = pargs,
@@ -226,7 +229,7 @@ evaluate (CallExpr procCall i) = -- (+ 1 2) - (set var 456)
             case largLexps of
                 True ->
                     let msg = debugProcCall procCall
-                        msg2 = msg ++ " at line " ++ show i
+                        msg2 = msg ++ " at line " ++ debugTokenInfo tinfo
                         msg3 = msg2 ++ " has incorrect number of arguments"
                         msg4 = msg3 ++ " given: " ++ show lexps
                         msg5 = msg4 ++ " defined: " ++ show largs
@@ -244,9 +247,9 @@ evaluate (CallExpr procCall i) = -- (+ 1 2) - (set var 456)
                         -- return computed value
                         return rvalue
 
-          evalBin ch (LiteralExpr (NumLit f) fln) (LiteralExpr (NumLit s) sln) line =
-            let first = (LiteralExpr (NumLit f) fln)
-                second = (LiteralExpr (NumLit s) sln)
+          evalBin ch (LiteralExpr (NumLit f fln)) (LiteralExpr (NumLit s sln)) tinfo =
+            let first = LiteralExpr (NumLit f fln)
+                second = LiteralExpr (NumLit s sln)
             in 
                 case ch of
                     "+" -> return $ add2Number first second
@@ -258,20 +261,20 @@ evaluate (CallExpr procCall i) = -- (+ 1 2) - (set var 456)
                     ">" -> return $ cmpBinExprFn (>) first second
                     "=" -> return $ cmpBinExprFn (==) first second
                     "!" -> return $ cmpBinExprFn (/=) first second
-                    _ -> evalNarg ch line [first, second]
-          evalBin ch (LiteralExpr (BLit f) fln) (LiteralExpr (BLit s) sln) line =
-            let first = LiteralExpr (BLit f) fln
-                second = LiteralExpr (BLit s) sln
+                    _ -> evalNarg ch tinfo [first, second]
+          evalBin ch (LiteralExpr (BLit f fln)) (LiteralExpr (BLit s sln)) tinfo =
+            let first = LiteralExpr (BLit f fln)
+                second = LiteralExpr (BLit s sln)
             in
                 case ch of
                     "&" -> return $ andBool first second
                     "|" -> return $ orBool first second
                     "=" -> return $ boolBinExprFn (==) first second
                     "!" -> return $ boolBinExprFn (/=) first second
-                    _ -> evalNarg ch line [first, second]
-          evalBin ch first second line =
+                    _ -> evalNarg ch tinfo [first, second]
+          evalBin ch first second tinfo =
             let msgp ="arguments are not "
-                msge = " expressions at line " ++ show line
+                msge = " expressions at line " ++ debugTokenInfo tinfo
             in case ch of
                 "+" -> error $ msgp ++ "numeric" ++ msge
                 "-" -> error $ msgp ++ "numeric" ++ msge
@@ -282,26 +285,26 @@ evaluate (CallExpr procCall i) = -- (+ 1 2) - (set var 456)
                 ">" -> error $ msgp ++ "numeric" ++ msge
                 "&" -> error $ msgp ++ "boolean" ++ msge
                 "|" -> error $ msgp ++ "boolean" ++ msge
-                "=" -> let lit = LiteralExpr (BLit (first == second)) (getExprLine first)
+                "=" -> let lit = LiteralExpr (BLit (first == second) (getExprInfo first))
                        in return lit
                        -- in error $ "equal came: " ++ debugExpr first
-                "!" -> return $ LiteralExpr (BLit (first /= second)) (getExprLine first)
-                _ -> evalNarg ch line [first, second]
-          evalUn op e lun =
+                "!" -> return $ LiteralExpr (BLit (first /= second) (getExprInfo first))
+                _ -> evalNarg ch tinfo [first, second]
+          evalUn op e tinfo =
                 let msgpref = "expression must be a "
-                    msgend = " at line " ++ show lun
+                    msgend = " at line " ++ debugTokenInfo tinfo
                 in case op of
                     "-" -> let isNumeric = isNumericExpr e
                            in if isNumeric
-                              then let (LiteralExpr (NumLit b) j) = e
-                                   in return $ LiteralExpr (NumLit (-b)) lun
+                              then let LiteralExpr (NumLit b j) = e
+                                   in return $ LiteralExpr (NumLit (-b) j) 
                               else error $ msgpref ++ "number" ++ msgend
                     "~" -> let isBool = isBoolExpr e
                            in if isBool
-                              then let (LiteralExpr (BLit b) j) = e
-                                   in return $ LiteralExpr (BLit (not b)) lun
+                              then let LiteralExpr (BLit b j) = e
+                                   in return $ LiteralExpr (BLit (not b) j)
                               else error $ msgpref ++ "boolean" ++ msgend
-                    _ -> evalNarg op lun [e]
+                    _ -> evalNarg op tinfo [e]
 
 {-
 
@@ -315,10 +318,10 @@ let p4 = "(+ 2.0 (- 1.8 0.2))"
 -}
 
 -- evaluate get expression
-evaluate (SymbolicExpr (IdExpr str j)) = lookUp str j
+evaluate (SymbolicExpr (IdExpr (VName str j) _ _)) = lookUp str (lineNumber j)
 
 -- as per scheme specification
-evaluate EndExpr = return $ LiteralExpr (StrLit "") (-1)
+evaluate EndExpr = return $ LiteralExpr (StrLit "" $ mkTokInfo (-1) (-1) "" "")
 
 -- eval not matched
 evaluate a = error $ "the following expression is not matched: " ++ debugExpr a 
@@ -329,18 +332,27 @@ evaluate a = error $ "the following expression is not matched: " ++ debugExpr a
 exprCheck :: String -> Expr -> Bool
 exprCheck arg expected =
     let toks = tokenize arg 0 0
-        ptp = parse $ parseAll toks
-        act = runState $ evaluate ptp
-        (expr, _) = act (DMap.fromList [("f", EndExpr)])
-    in expr == expected
+        pexps = parseExpr toks
+    in
+        case pexps of
+            (Result res rem) -> let act = runState $ evaluate res
+                                    (expr, _) = act (DMap.fromList [("f", EndExpr)])
+                                    expb = expr == expected
+                                in if expb
+                                   then True
+                                   else error $ "unexpected " ++ show expr
+            (Error e) -> error $ "Error happened " ++ show e
 
 runEval :: String -> Expr
 runEval toks =
     let tp = tokenize toks 0 0
-        ptp = parse $ parseAll tp
-        act = runState $ evaluate ptp
-        (expr, _) = act (DMap.fromList [("f", EndExpr)])
-    in expr
+        pexps = parseExpr tp
+    in
+        case pexps of
+            (Result res rem) -> let act = runState $ evaluate res
+                                    (expr, _) = act (DMap.fromList [("f", EndExpr)])
+                                in expr
+            (Error e) -> error $ "Error: " ++ show e
 
 
 peval :: String -> IO ()

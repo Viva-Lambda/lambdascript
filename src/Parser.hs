@@ -4,7 +4,6 @@ import Lexer
 import Expression
 import ASTree
 
-
 -- (while (< x 2) (set x (+ x 1)))
 
 -- data ExprTree = ExprLeaf
@@ -51,6 +50,8 @@ arguments := (<identifier>*)
 body := (sequence)
 
 -}
+
+{-
 
 -- literal expressions 
 toExprLit :: SLiteral -> Literal
@@ -231,4 +232,5 @@ mkExpr toks =
       ptp = parseAll tp
       expTree = parse ptp
   in show expTree
+-}
 -- let p = "(+ 1.05 4.3)"

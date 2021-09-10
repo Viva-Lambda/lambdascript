@@ -261,11 +261,21 @@ isDo (TokSymbol b _) = b `elem` doWords
 isDo _ = True
 doparser = satisfy isDo
 
+isTokOp (TokOp i _) = True
+isTokOp _ = False
+tokop = satisfy isTokOp
+
 operator :: Parser Operator
 operator = do v <- varname; return $ OpName v
+           <|> 
+           do (TokOp p t) <- tokop; return $ OpName (VName [p] t)
 
 operand :: Parser Operand
-operand = do exps <- many expression; return $ OprExpr exps
+operand = do 
+    ltok <- lpar
+    exps <- many expression
+    rtok <- rpar
+    return $ OprExpr exps
 
 pcall :: Parser ProcedureCall
 pcall = do
