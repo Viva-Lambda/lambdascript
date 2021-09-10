@@ -1,4 +1,4 @@
-#  ΛΣ - LambdaScript - ΛΣ
+# ΛΣ - LambdaScript - ΛΣ
 
 A tiny turing complete language with lisp syntax.
 

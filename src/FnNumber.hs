@@ -3,11 +3,17 @@ module FnNumber where
 
 
 import Expression
+import Lexer
 
 -- numeric expression function
 numBinExprFn :: (Double -> Double -> Double) -> Expr -> Expr -> Expr
-numBinExprFn fn (LiteralExpr (NumLit a) i) (LiteralExpr (NumLit b) _) =
-    LiteralExpr (NumLit ( a `fn` b)) i
+numBinExprFn fn (LiteralExpr (NumLit a i)) (LiteralExpr (NumLit b j)) =
+    let val = a `fn` b
+        TokInfo {lineNumber = ta, colNumber = tc,
+                 tokDescription = td, tokContext = tcon} = joinTokInfo i j
+        ndescr = "line: " ++ show ta ++ " " ++ td
+        info = mkTokInfo ta tc ndescr tcon
+    in LiteralExpr (NumLit val info)
 
 numBinExprFn _ a b = 
     let linea = debugExpr a
@@ -17,8 +23,13 @@ numBinExprFn _ a b =
     in error msg2
 
 cmpBinExprFn :: (Double -> Double -> Bool) -> Expr -> Expr -> Expr
-cmpBinExprFn fn (LiteralExpr (NumLit a) i) (LiteralExpr (NumLit b) _) = 
-    LiteralExpr (BLit ( a `fn` b)) i
+cmpBinExprFn fn (LiteralExpr (NumLit a i)) (LiteralExpr (NumLit b j)) = 
+    let val = a `fn` b
+        TokInfo {lineNumber = ta, colNumber = tc,
+                 tokDescription = td, tokContext = tcon} = joinTokInfo i j
+        ndescr = "line: " ++ show ta ++ " " ++ td
+        info = mkTokInfo ta tc ndescr tcon
+    in LiteralExpr (BLit val info)
 
 cmpBinExprFn _ a b = 
     let linea = debugExpr a
@@ -39,7 +50,7 @@ multiply2Number :: Expr -> Expr -> Expr
 multiply2Number a b = numBinExprFn (*) a b
 
 divide2Number :: Expr -> Expr -> Expr
-divide2Number a (LiteralExpr (NumLit 0.0) i) = 
+divide2Number a (LiteralExpr (NumLit 0.0 i)) = 
     error $ "zero division at line " ++ show i
 divide2Number a b = numBinExprFn (/) a b
 

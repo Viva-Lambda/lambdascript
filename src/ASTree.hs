@@ -2,7 +2,7 @@
 module ASTree where
 
 import Lexer
-import Expression
+import Data.List
 
 -- 
 data SLiteral = BooleanLiteral Bool TokenInfo
@@ -17,20 +17,57 @@ instance Show SLiteral where
 
 instance Eq SLiteral where
     (BooleanLiteral b _) == (BooleanLiteral a _) = b == a
-    (BooleanLiteral b _) == _ = False
+    (BooleanLiteral _ _) == _ = False
     (StringLiteral b _) == (StringLiteral a _) = b == a
-    (StringLiteral b _) == _ = False
+    (StringLiteral _ _) == _ = False
     (NumericLiteral b _) == (NumericLiteral a _) = b == a
-    (NumericLiteral b _) == _ = False
+    (NumericLiteral _ _) == _ = False
+
+type Annotation = String
+type Symbol = String
 
 
 data STree = SList [STree]
            | SLit SLiteral
-           | Symbol String TokenInfo
+           | SName Symbol TokenInfo
+           | SVar Symbol Annotation TokenInfo
            deriving (Eq, Show)
 
+debugSTree :: STree -> String
+
+debugSTree s = 
+    case s of
+        (SLit (BooleanLiteral b info)) -> 
+            let msg = "{ \"slit-bool\": " ++ show b ++ ", \"info\": "
+            in dmsg msg info
+        (SLit (StringLiteral b info)) ->
+            let msg = "{ \"slit-string\": " ++ show b ++ ", \"info\": "
+            in dmsg msg info
+        (SLit (NumericLiteral b info)) -> 
+            let msg = "{ \"slit-number\": " ++ show b ++ ", \"info\": "
+            in dmsg msg info
+        (SName b info) ->
+            let msg = "{ \"slit-symbol\": \"" ++ show b ++ "\", \"info\": "
+            in dmsg msg info
+        (SVar a b info) ->
+            let msg = "{ \"slit-variable\": " 
+                msg2 = "{" ++ "\"name\": \"" ++ show a ++ "\","
+                msg3 =  "\"annotation\": \"" ++ show b ++ "\"}"
+                msg4 = msg ++ msg2 ++ msg3 ++ ", \"info\": "
+            in dmsg msg4 info
+        (SList a) ->
+            let msg = "{ \"slist\": [ "
+                msg2 = intercalate ", " $ map debugSTree a
+                msg3 = " ]}"
+            in msg ++ msg2 ++ msg3
+    where dmsg m i = m ++ debugTokenInfo i ++ " }"
+
+
+
+
+
 isSLit :: STree -> Bool
-isSLit (SLit a) = True
+isSLit (SLit _) = True
 isSLit _ = False
 isNumSLit :: STree -> Bool
 isNumSLit (SLit (NumericLiteral _ _)) = True
@@ -44,30 +81,22 @@ isStrSLit :: STree -> Bool
 isStrSLit (SLit (StringLiteral _ _)) = True
 isStrSLit _ = False
 
-isSymbol :: STree -> Bool
-isSymbol (Symbol a b) = True
-isSymbol _ = False
+isSName :: STree -> Bool
+isSName (SName _ _) = True
+isSName _ = False
 
 isSList :: STree -> Bool
-isSList (SList a) = True
+isSList (SList _) = True
 isSList _ = False
 
 getSTreeTokInfo :: STree -> TokenInfo
-getSTreeTokInfo (Symbol _ b) = b
+getSTreeTokInfo (SName _ b) = b
+getSTreeTokInfo (SVar _ _ b) = b
 getSTreeTokInfo (SLit (BooleanLiteral _ b)) = b
 getSTreeTokInfo (SLit (StringLiteral _ b)) = b
 getSTreeTokInfo (SLit (NumericLiteral _ b)) = b
-getSTreeTokInfo (SList []) = TokInfo (-1) (-1)
+getSTreeTokInfo (SList []) = TokInfo (-1) (-1) "" ""
 getSTreeTokInfo (SList (a:_)) = getSTreeTokInfo a
-
-mkIdentifiers :: [STree] -> [Identifier]
-mkIdentifiers [] = []
-mkIdentifiers (Symbol a (TokInfo i j) : aa) = IdExpr a i : mkIdentifiers aa
-mkIdentifiers (a:_) =
-    let (TokInfo line col) = getSTreeTokInfo a
-        msg = "Can not make identifiers with tokens of line "
-        msg2 = msg ++ show line ++ " column " ++ show col
-    in error msg2
 
 
 parseOne :: [Token] -> ([STree], [Token])
@@ -76,16 +105,31 @@ parseMany :: [STree] -> [Token] -> ([STree], [Token])
 parseOne [] = ([], [])
 parseOne [TokEnd] = ([], [])
 
-parseOne (TokLPar tinfo: toks) =
+parseOne (TokLPar _: toks) =
   let (st, ts) = parseMany [] toks
   in ([SList st], ts)
 
-parseOne (TokSymbol s a: tokens) = ([Symbol s a], tokens)
-parseOne (TokOp s a: tokens) = ([Symbol [s] a], tokens)
+parseOne (TokSymbol a ainfo : TokSep _ _: TokSymbol c _ :tokens) = 
+    ([SVar c a ainfo], tokens)
+
+parseOne (TokSep _ (TokInfo line col _ _): TokSymbol _ _ :_) = 
+    let msg = "typename seperator must be preceded by a variable name"
+        msg2 = msg ++ " at line " ++ show line ++ " column " ++ show col
+    in error msg2
+
+parseOne (TokSep _ (TokInfo line col _ _): _) = 
+    let msg = "typename seperator must be preceded by a variable name"
+        msg2 = msg ++ " and precede a typename "
+        msg3 = msg2 ++ " at line " ++ show line ++ " column " ++ show col
+    in error msg3
+
+
+parseOne (TokSymbol s a: tokens) = ([SName s a], tokens)
+parseOne (TokOp s a: tokens) = ([SName [s] a], tokens)
 parseOne (TokBool b a: tokens) = ([SLit $ BooleanLiteral b a], tokens)
 parseOne (TokNumber b a: tokens) = ([SLit $ NumericLiteral b a], tokens)
 parseOne (TokString b a: tokens) = ([SLit $ StringLiteral b a], tokens)
-parseOne (TokRPar a: tokens) = ([], tokens)
+parseOne (TokRPar _: tokens) = ([], tokens)
 parseOne (TokEnd: tokens) = ([], tokens)
 
 parseMany previous tokens =
@@ -98,7 +142,7 @@ parseMany previous tokens =
 parseAll :: [Token] -> STree
 parseAll tokens =
   case parseMany [] tokens of
-    (ns, []) -> SList $ Symbol "seq" (TokInfo 0 0) : ns
+    (ns, []) -> SList $ SName "seq" (TokInfo 0 0 "" "") : ns
     _ -> error ("unexpected content: " ++ toString tokens)
 
  -- helper functions

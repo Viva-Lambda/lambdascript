@@ -1,11 +1,17 @@
 -- standard boolean expression functions
 module FnBool where
 
+import Lexer
 import Expression
 
 boolBinExprFn :: (Bool -> Bool -> Bool) -> Expr -> Expr -> Expr
-boolBinExprFn fn (LiteralExpr (BLit a) i) (LiteralExpr (BLit b) _) =
-    LiteralExpr ( BLit ( a `fn` b) ) i
+boolBinExprFn fn (LiteralExpr (BLit a i)) (LiteralExpr (BLit b j)) =
+    let val = a `fn` b
+        TokInfo {lineNumber = ta, colNumber = tc,
+                 tokDescription = td, tokContext = tcon} = joinTokInfo i j
+        ndescr = "line: " ++ show ta ++ " " ++ td
+        info = mkTokInfo ta tc ndescr tcon
+    in LiteralExpr ( BLit val info)
 
 boolBinExprFn _ a b =
     let linea = debugExpr a

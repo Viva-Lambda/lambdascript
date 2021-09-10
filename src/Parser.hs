@@ -66,11 +66,11 @@ parse :: STree -> Expr
 
 -- if statement call expression test
 
-parse (SList [Symbol "if" (TokInfo line _),
-        SList (Symbol "do" (TokInfo ln col):a),
-        SList [Symbol "then" _, SList (Symbol "seq" k:conseq)],
-        SList [Symbol "else" _, SList (Symbol "seq" g:alter)]]) =
-    let procTest = parse (SList (Symbol "do" (TokInfo ln col):a))
+parse (SList [SName "if" (TokInfo line _),
+        SList (SName "do" (TokInfo ln col):a),
+        SList [SName "then" _, SList (SName "seq" k:conseq)],
+        SList [SName "else" _, SList (SName "seq" g:alter)]]) =
+    let procTest = parse (SList (SName "do" (TokInfo ln col):a))
         (CallExpr procCall _) = procTest
         cseq = fromExprToSeq $ map parse conseq
         caltern = fromExprToSeq $ map parse alter
@@ -81,10 +81,10 @@ parse (SList [Symbol "if" (TokInfo line _),
     in StmtExpr stmt line
 
 -- literal and symbolic variable test
-parse (SList [Symbol "if" (TokInfo line _),
+parse (SList [SName "if" (TokInfo line _),
         SList [SLit lval],
-        SList [Symbol "then" _, SList (Symbol "seq" k:conseq)],
-        SList [Symbol "else" _, SList (Symbol "seq" g:alter)]]) =
+        SList [SName "then" _, SList (SName "seq" k:conseq)],
+        SList [SName "else" _, SList (SName "seq" g:alter)]]) =
     let (TokInfo _ _) = getSTreeTokInfo (SLit lval)
         cseq = fromExprToSeq $ map parse conseq
         caltern = fromExprToSeq $ map parse alter
@@ -96,11 +96,11 @@ parse (SList [Symbol "if" (TokInfo line _),
         where ct = CTestLit (toExprLit lval)
 
 
-parse (SList [Symbol "if" (TokInfo line _),
-        SList [Symbol a (TokInfo ln _)],
-        SList [Symbol "then" _, SList (Symbol "seq" k:conseq)],
-        SList [Symbol "else" _, SList (Symbol "seq" g:alter)]]) =
-    let ct = CTestId (IdExpr a ln)
+parse (SList [SName "if" (TokInfo line _),
+        SList [SName a (TokInfo ln _)],
+        SList [SName "then" _, SList (SName "seq" k:conseq)],
+        SList [SName "else" _, SList (SName "seq" g:alter)]]) =
+    let ct = CTestVar (VName a (TokInfo ln _))
         cseq = fromExprToSeq $ map parse conseq
         caltern = fromExprToSeq $ map parse alter
         condExp = Cond {ctest=ct, consequent=cseq, alternate=caltern}
@@ -110,19 +110,19 @@ parse (SList [Symbol "if" (TokInfo line _),
 -- loop statement
 
 -- call expression test
-parse (SList [Symbol "loop" (TokInfo line c),
-        SList (Symbol "do" (TokInfo ln col):a),
-        SList [Symbol "then" _, SList (Symbol "seq" k:conseq)]]) =
-    let (CallExpr procCall _) = parse (SList (Symbol "do" (TokInfo ln col):a) )
+parse (SList [SName "loop" (TokInfo line c),
+        SList (SName "do" (TokInfo ln col):a),
+        SList [SName "then" _, SList (SName "seq" k:conseq)]]) =
+    let (CallExpr procCall _) = parse (SList (SName "do" (TokInfo ln col):a) )
         cseq = fromExprToSeq $ map parse conseq
         loopExp = Looper {ltest=CTestProc procCall, lconsequent=cseq}
         stmt = LoopStmt loopExp
     in StmtExpr stmt line
 
 
-parse (SList [Symbol "loop" (TokInfo line _),
+parse (SList [SName "loop" (TokInfo line _),
         SList [SLit lval],
-        SList [Symbol "then" _, SList (Symbol "seq" k:conseq)]]) =
+        SList [SName "then" _, SList (SName "seq" k:conseq)]]) =
     let cseq = fromExprToSeq $ map parse conseq
         loopExpr = Looper {ltest=ct, lconsequent=cseq}
         stmt = LoopStmt loopExpr
@@ -130,10 +130,10 @@ parse (SList [Symbol "loop" (TokInfo line _),
         where ct = CTestLit (toExprLit lval)
 
 
-parse (SList [Symbol "loop" (TokInfo line c),
-        SList [Symbol a (TokInfo _ _)],
-        SList [Symbol "then" _, SList (Symbol "seq" k:conseq)]]) =
-    let ct = CTestId (IdExpr a line)
+parse (SList [SName "loop" (TokInfo line c),
+        SList [SName a (TokInfo _ _)],
+        SList [SName "then" _, SList (SName "seq" k:conseq)]]) =
+    let ct = CTestVar (VName a (TokInfo _ _))
         cseq = fromExprToSeq $ map parse conseq
         loopExpr = Looper {ltest=ct, lconsequent=cseq}
         stmt = LoopStmt loopExpr
@@ -143,12 +143,12 @@ parse (SList [Symbol "loop" (TokInfo line c),
 
 -- procedural definition statement
 parse (SList [
-        Symbol "fn" (TokInfo line _),
-        Symbol str (TokInfo ln _), -- function name
-        SList (Symbol argname i : ars), -- function arguments
-        SList (Symbol "seq" j:fnbody)]) =
+        SName "fn" (TokInfo line _),
+        SName str (TokInfo ln _), -- function name
+        SList (SName argname i : ars), -- function arguments
+        SList (SName "seq" j:fnbody)]) =
         let procN = IdExpr str ln
-            procArgs = mkIdentifiers (Symbol argname i : ars)
+            procArgs = mkIdentifiers (SName argname i : ars)
             procBody = fromExprToSeq $ map parse fnbody
             procDefExp = DefineProc {
                 procname = procN, arguments = procArgs, body = procBody
@@ -159,8 +159,8 @@ parse (SList [
 -- Assign statement
 
 parse (SList [
-    Symbol "def" (TokInfo line col),
-    Symbol str (TokInfo ln c), a]) =
+    SName "def" (TokInfo line col),
+    SName str (TokInfo ln c), a]) =
     let assignId = IdExpr str ln
         assignExpr = parse a
         assignEx = Assigner assignId assignExpr 
@@ -169,7 +169,7 @@ parse (SList [
 
 
 -- sequence statement
-parse (SList (Symbol "seq" i:a)) = reduceExpr $ map parse a 
+parse (SList (SName "seq" i:a)) = reduceExpr $ map parse a 
 
 -- match simpler expressions now
 
@@ -178,7 +178,7 @@ parse (SLit (StringLiteral s (TokInfo line _))) = LiteralExpr ( StrLit s) line
 parse (SLit (NumericLiteral s (TokInfo line _))) = LiteralExpr (NumLit s) line
 
 -- binary expressions
-parse (SList [Symbol "do" (TokInfo line col), Symbol op (TokInfo ln _), 
+parse (SList [SName "do" (TokInfo line col), SName op (TokInfo ln _), 
         SList [b, c]]) =
     case op of
         "+" -> mkBinary op b c ln line
@@ -202,18 +202,18 @@ parse (SList [Symbol "do" (TokInfo line col), Symbol op (TokInfo ln _),
 
 -- general procedure call expression
 parse (SList [
-    Symbol "do" (TokInfo line _), 
-    Symbol s (TokInfo l _), 
+    SName "do" (TokInfo line _), 
+    SName s (TokInfo l _), 
     SList (a:callargs)
     ]) =
     let procCall = Proc (OpName (IdExpr s l)) (OprExpr $ map parse (a:callargs))
     in CallExpr procCall line
 
--- parse (SList (Symbol "begin" b):a) = parse a
+-- parse (SList (SName "begin" b):a) = parse a
 
 
 -- symbolic expressions
-parse (Symbol a (TokInfo line _)) = SymbolicExpr $ IdExpr a line
+parse (SName a (TokInfo line _)) = SymbolicExpr $ IdExpr a line
 
 -- last match
 -- parse (SList a) = reduceExpr $ map parse a
@@ -222,45 +222,6 @@ parse a = error $ "can not match stree " ++ show a
 
 -- parse (SList a) = reduceExpr (map parse a)
 
-reduceExpr :: [Expr] -> Expr
-reduceExpr [] = EndExpr
-reduceExpr (e:es) =
-    let children = reduceExpr es
-        seq = SeqExpr {parent = e, child = children}
-        stmt = SeqStmt seq
-    in StmtExpr stmt (getExprLine e)
-
-fromExprToSeq :: [Expr] -> Sequence
-fromExprToSeq [] = SeqExpr {parent = EndExpr, child = EndExpr}
-fromExprToSeq (e:es) = SeqExpr {parent = e, child = reduceExpr es}
-
-fromSeqToExprs :: Sequence -> [Expr]
--- end of sequence
-fromSeqToExprs SeqExpr {parent = EndExpr, child=EndExpr} = []
--- skip parent sequence
-fromSeqToExprs SeqExpr {parent = EndExpr, child=StmtExpr (SeqStmt s) i} = fromSeqToExprs s
--- skip child sequence
-fromSeqToExprs SeqExpr {parent = StmtExpr (SeqStmt s) i, child=EndExpr} = fromSeqToExprs s
--- both are sequences
-fromSeqToExprs SeqExpr {parent = StmtExpr (SeqStmt s) i, child=StmtExpr (SeqStmt a) j} = 
-    fromSeqToExprs s ++ fromSeqToExprs a
--- only parent is a sequence
-fromSeqToExprs SeqExpr {parent = StmtExpr (SeqStmt s) i, child=a} = 
-    fromSeqToExprs s ++ [a]
--- only child is a sequence
-fromSeqToExprs SeqExpr {parent = a, child=StmtExpr (SeqStmt s) i} = [a] ++ fromSeqToExprs s
--- both are not a sequence
-fromSeqToExprs SeqExpr {parent = a, child = b} = [a] ++ [b]
-
-
--- reduceExpr (e:es) = foldr SeqExpr EndExpr (e:es)
-
-getExprLine :: Expr -> LineInfo
-getExprLine (LiteralExpr a line) = line
-getExprLine (SymbolicExpr (IdExpr a line)) = line
-getExprLine (CallExpr a line) = line
-getExprLine (StmtExpr a line) = line
-getExprLine EndExpr = -1
 
 mkExpr :: String -> String
 
