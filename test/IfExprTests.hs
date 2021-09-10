@@ -60,20 +60,23 @@ ifBinaryExpr2 = "(if (do < (6.0 3.4))\
 
 
 ifIfExpr1 :: String
-ifIfExpr1 = "(if (do < (1.0 3.4))\ 
-           \ (then (seq (if (do > (1.0 0.5))\ 
-           \            (then (seq (do + (3.0 6.0))))\ 
-           \            (else (seq (do * (2.0 4.0))))\ 
-           \            )))\ 
-           \ (else (seq do / (4.0 2.0))) )"
+ifIfExpr1 = "(if (do < (1.0 3.4))\n\ 
+           \     (then (seq (if (do > (1.0 0.5))\n\ 
+           \                    (then (seq (do + (3.0 6.0))))\n\ 
+           \                    (else (seq (do * (2.0 4.0))))\
+                          \ )\
+           \            )\
+           \     )\
+               \ (else (seq (do / (4.0 2.0)) ) )\
+           \ ) "
 
 ifIfExpr2 :: String
 ifIfExpr2 =  "(if (do < (6.0 3.4) )\
-            \ (then (seq (if (do > (1.0 0.5))\
+            \     (then (seq (if (do > (1.0 0.5))\
             \            (then (seq (do + (3.0 6.0))))\
             \            (else (seq (do * (2.0 4.0))))\
             \            )))\
-            \ (else (seq (do / (4.0 2.0))))"
+            \     (else (seq (do / (4.0 2.0)))) )"
 
 
 ifExprCheck :: String -> Expr -> Bool
