@@ -3,6 +3,25 @@ module Main (main) where
 import Evaluator
 import System.Environment
 import Data.List
+import qualified Data.Map as DMap
+
+readKeywords :: String -> DMap.Map String [String]
+readKeywords fileContents =
+    let fileLines = lines fileContents
+        (ln:lns) = map words fileLines
+    in DMap.fromList (f (ln:lns))
+    where f [] = []
+          f (s:ss) = (head s, tail s): f ss
+
+checkCommandArgs :: [String] -> Bool
+checkCommandArgs _ inpa outp = 
+    let fCheck = ".lambda" `isSuffixOf` inpa
+        oCheck = ".lambda" `isSuffixOf` outp
+        oCheck1 = "stdout" == outp
+    in if fCheck && (oCheck || oCheck1)
+        then do
+            contents <- readFile inpath
+
 
 
 main :: IO ()
