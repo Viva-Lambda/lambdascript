@@ -10,7 +10,7 @@ import Test.HUnit
 import qualified Data.Map as DMap
 
 seqString :: String
-seqString = "(seq (def var1 2.5)\n (do * (var1 2.0))\n)"
+seqString = "(seq (def var1: float 2.5)\n (do * (var1 2.0))\n)"
 
 test1 :: Test
 test1 = TestCase (
@@ -20,8 +20,8 @@ test1 = TestCase (
     )
 
 seqString2 :: String
-seqString2 = "(seq (def var1 2.5)\n\
-                 \ (def var1 (do * (var1 2.0)))\n\
+seqString2 = "(seq (def var1: float 2.5)\n\
+                 \ (def var1: float (do * (var1 2.0)))\n\
                  \ (do / (var1 2.5)) )"
 
 test2 :: Test

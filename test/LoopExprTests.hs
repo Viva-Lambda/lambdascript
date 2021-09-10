@@ -10,9 +10,9 @@ import Test.HUnit
 -- import qualified Data.Map as DMap
 
 loopstr :: String
-loopstr = "(seq (def x 0.0)\
+loopstr = "(seq (def x: float 0.0)\
               \ (loop (do < (x 10.0))\
-                    \ (then (seq (def x (do + (x 1.0)))))\
+                    \ (then (seq (def x: float (do + (x 1.0)))))\
               \ )\
               \ x \
          \ )"

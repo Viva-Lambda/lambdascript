@@ -144,7 +144,7 @@ debugLiteral a =
             in m ++ msg ++ "}"
 
 data Expr = LiteralExpr Literal -- eval written
-            | SymbolicExpr Identifier
+            | GetExpr VarName
             | CallExpr ProcedureCall TokenInfo
             | StmtExpr Statement TokenInfo --
             | EndExpr
@@ -152,14 +152,14 @@ data Expr = LiteralExpr Literal -- eval written
 
 instance Show Expr where
     show (LiteralExpr a ) = show a
-    show (SymbolicExpr a) = show a
+    show (GetExpr a) = show a
     show (CallExpr a _) = show a
     show (StmtExpr a _) = show a
     show EndExpr = ""
 
 debugExpr :: Expr -> String
 debugExpr (LiteralExpr a) = "LiteralExpr " ++ debugLiteral a
-debugExpr (SymbolicExpr a) = "SymbolicExpr " ++ debugIdentifier a
+debugExpr (GetExpr a) = "GetExpr " ++ debugVarName a
 debugExpr (CallExpr a i) = "CallExpr " ++ debugProcCall a ++ " at line " ++ show i
 debugExpr (StmtExpr a i) = "StmtExpr " ++ debugStatement a ++ " at line " ++ show i
 debugExpr EndExpr = "EndExpr" 
@@ -167,8 +167,8 @@ debugExpr EndExpr = "EndExpr"
 instance Eq Expr where
     (LiteralExpr a ) == (LiteralExpr b ) = a == b
     (LiteralExpr _ ) == _ = False
-    (SymbolicExpr a) == (SymbolicExpr b) = a == b
-    (SymbolicExpr _) == _ = False
+    (GetExpr a) == (GetExpr b) = a == b
+    (GetExpr _) == _ = False
     (CallExpr a _) == (CallExpr b _) = a == b
     (CallExpr _ _) == _ = False
     (StmtExpr a _) == (StmtExpr b _) = a == b
@@ -272,10 +272,13 @@ statementInfo (LoopStmt (Looper {ltest = a, lconsequent = b})) =
         (CTestVar (VName _ info)) -> info
 
 statementInfo (SeqStmt (SeqExpr {parent = a, child = b})) = getExprInfo a
+statementInfo (ProcDefStmt pdef) =
+    let IdExpr (VName v info) _ _ = procname pdef
+    in info
 
 getExprInfo :: Expr -> TokenInfo
 getExprInfo (LiteralExpr li) = getLitTokenInfo li
-getExprInfo (SymbolicExpr (IdExpr (VName _ i) _ _)) = i
+getExprInfo (GetExpr (VName _ i) ) = i
 getExprInfo (CallExpr _ i) = i
 getExprInfo (StmtExpr _ i) = i 
 getExprInfo EndExpr = mkTokInfo (-1) (-1) "end of expression" ""
@@ -366,6 +369,7 @@ instance Eq Assign where
 
 reduceExpr :: [Expr] -> Expr
 reduceExpr [] = EndExpr
+
 reduceExpr (e:es) =
     let children = reduceExpr es
         seq = SeqExpr {parent = e, child = children}

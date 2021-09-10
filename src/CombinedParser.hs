@@ -10,7 +10,7 @@ import Control.Applicative
 {-
 Here is the grammar of the language
 
-expression := <literal> | <identifier> | <procedure call>
+expression := <literal> | <varname> | <procedure call>
 
 statement := <conditional>
             | <assignment>
@@ -93,7 +93,7 @@ instance Functor ParseResult where
 instance Functor Parser where
   fmap f pr = 
     let pfn = parse pr -- accessing P {parse = f} field
-        mapfn = \toks -> 
+        mapfn = \toks ->
                         let aResult = pfn toks
                             bResult = fmap f aResult
                         in bResult
@@ -127,10 +127,10 @@ instance Alternative Parser where
     -- choice function, apply first if fails, try the other one
     -- if succeed return first one
     -- (<|>) :: f a -> f a -> f a
-    p <|> q = 
+    p <|> q =
         let pfn = parse p -- accessing P {parse = f} field
             qfn = parse q
-            resultfn = \toks -> 
+            resultfn = \toks ->
                 case pfn toks of
                     (Error _) -> qfn toks
                     (Result _ _) -> pfn toks
@@ -259,6 +259,7 @@ doWords :: [String]
 doWords = ["do", "yap"]
 isDo (TokSymbol b _) = b `elem` doWords
 isDo _ = True
+
 doparser = satisfy isDo
 
 isTokOp (TokOp i _) = True
@@ -272,9 +273,9 @@ operator = do v <- varname; return $ OpName v
 
 operand :: Parser Operand
 operand = do 
-    ltok <- lpar
+    _ <- lpar
     exps <- many expression
-    rtok <- rpar
+    _ <- rpar
     return $ OprExpr exps
 
 pcall :: Parser ProcedureCall
@@ -442,6 +443,7 @@ procDefStmt = do
     fnid <- identifier
     fargs <- farguments
     fbody <- ssequence
+    _ <- rpar
     return $ DefineProc {procname = fnid, arguments = fargs, body = fbody}
 
 -- Statement parser
@@ -449,7 +451,7 @@ procDefStmt = do
 statement :: Parser Statement
 
 statement = do astmt <- assign; return $ AssignStmt astmt
-            <|> 
+            <|>
             do conds <- condStmt; return $ CondStmt conds
             <|>
             do procd <- procDefStmt; return $ ProcDefStmt procd
@@ -459,10 +461,18 @@ statement = do astmt <- assign; return $ AssignStmt astmt
             do seqt <- ssequence; return $ SeqStmt seqt
 
 -- now we can define an expression
+isEndExpr :: Expr -> Bool
+isEndExprTok :: Token -> Bool
+isEndExpr EndExpr = True
+isEndExpr _ = False
+isEndExprTok TokEnd =  True
+isEndExprTok _ =  False
+endexpr :: Parser Token
+endexpr = satisfy isEndExprTok
 
 expression = do lit <- literal; return $ LiteralExpr lit
             <|> 
-            do ids <- identifier; return $ SymbolicExpr ids
+            do ids <- varname; return $ GetExpr ids
             <|> 
             do procCall <- pcall; 
                 let procInfo = procCallInfo procCall
@@ -470,6 +480,8 @@ expression = do lit <- literal; return $ LiteralExpr lit
             <|>
             do stmt <- statement; 
                 let sinf = statementInfo stmt in return $ StmtExpr stmt sinf
+            <|>
+            do e <-endexpr; return $ EndExpr
 
 parseExpr :: [Token] -> ParseResult Expr
 parseExpr = parse expression -- accessing P{parse = f} field

@@ -1,3 +1,2 @@
-; this is a hello world script for
-; lambdascript
+; this is a hello world script for lambdascript
 (seq "Hello World")

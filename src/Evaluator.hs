@@ -20,12 +20,12 @@ type Evaluator a = State SymTab a
 
 -- evaluate literals
 
-lookUp :: String -> Int -> Evaluator Expr
+lookUp :: String -> TokenInfo -> Evaluator Expr
 lookUp str i = do
     symTab <- get
     case DMap.lookup str symTab of
         Just v -> return v
-        Nothing -> error $ "undefined variable " ++ str ++ " at line " ++ show i
+        Nothing -> error $ "undefined variable " ++ str ++ debugTokenInfo i
 
 addSymbol :: String -> Expr -> Evaluator ()
 addSymbol str expr = do
@@ -129,23 +129,24 @@ evaluate (StmtExpr (CondStmt a) line) =
               consequent = conseq,
               alternate = alter} = a
     in case ct of
-        (CTestVar (VName ide (TokInfo ln col _ _))) -> do
-            expr <- lookUp ide ln
+        (CTestVar (VName ide info)) -> do
+            expr <- lookUp ide info
             condVal <- evaluate expr
             case condVal of
                 (LiteralExpr lit) -> eval lit conseq alter
                 _ -> let msg = "Variable must evaluate to a literal value"
-                         msg2 = msg ++ " at line " ++ show ln
+                         msg2 = msg ++ " at line " ++ debugTokenInfo info
                      in error msg2
         (CTestLit lit) -> eval lit conseq alter
-        (CTestProc p) -> do
-            result <- evaluate (CallExpr p line)
-            case result of
-                --
-                (LiteralExpr lit) -> eval lit conseq alter
-                _ -> let msg = "Procedure must evaluate to a literal value"
-                         msg2 = msg ++ " at line " ++ show line
-                     in error msg2
+        (CTestProc p) -> let tinfo = procCallInfo p
+            in do
+                result <- evaluate (CallExpr p tinfo)
+                case result of
+                    --
+                    (LiteralExpr lit) -> eval lit conseq alter
+                    _ -> let msg = "Procedure must evaluate to a literal value"
+                             msg2 = msg ++ " at line " ++ debugTokenInfo tinfo
+                         in error msg2
         where eval (BLit b _) co alt = if b
                                      then foldlSequence co
                                      else foldlSequence alt
@@ -164,13 +165,14 @@ evaluate (StmtExpr (LoopStmt loopE) line) =
         case ct of
             -- evaluate loop condition
             -- loop condition is variable
-            (CTestVar (VName ids (TokInfo ln col i j))) -> do
-                expr <- lookUp ids ln
-                case expr of
-                    (LiteralExpr lit ) -> eval loopE lit
-                    _ -> let msg = debugVarName (VName ids (TokInfo ln col i j))
-                             msg2 = msg ++ " must evaluate to a literal value"
-                         in error msg2
+            (CTestVar v) -> let (VName ids info) = v
+                in do
+                    expr <- lookUp ids info
+                    case expr of
+                        (LiteralExpr lit ) -> eval loopE lit
+                        _ -> let msg = debugVarName v
+                                 msg2 = msg ++ " must evaluate to a literal value"
+                             in error msg2
             (CTestLit lit) -> eval loopE lit
             (CTestProc p) -> do
                 result <- evaluate (CallExpr p (procCallInfo p))
@@ -217,7 +219,7 @@ evaluate (CallExpr procCall i) = -- (+ 1 2) - (set var 456)
             -- call expression of a defined function
             (OprExpr exps) -> evalNarg op info exps
     where evalNarg funcName tinfo es = do
-            procExpr <- lookUp funcName (lineNumber tinfo)
+            procExpr <- lookUp funcName tinfo 
             let (StmtExpr (ProcDefStmt a) _) = procExpr
                 DefineProc { procname = _,
                              arguments = pargs,
@@ -318,7 +320,7 @@ let p4 = "(+ 2.0 (- 1.8 0.2))"
 -}
 
 -- evaluate get expression
-evaluate (SymbolicExpr (IdExpr (VName str j) _ _)) = lookUp str (lineNumber j)
+evaluate (GetExpr (VName str j)) = lookUp str j 
 
 -- as per scheme specification
 evaluate EndExpr = return $ LiteralExpr (StrLit "" $ mkTokInfo (-1) (-1) "" "")
@@ -335,13 +337,16 @@ exprCheck arg expected =
         pexps = parseExpr toks
     in
         case pexps of
-            (Result res rem) -> let act = runState $ evaluate res
-                                    (expr, _) = act (DMap.fromList [("f", EndExpr)])
-                                    expb = expr == expected
-                                in if expb
-                                   then True
-                                   else error $ "unexpected " ++ show expr
-            (Error e) -> error $ "Error happened " ++ show e
+            (Result res rem) -> 
+                let act = runState $ evaluate res
+                    (expr, _) = act (DMap.fromList [("k", EndExpr)])
+                    expb = expr == expected
+                in if expb
+                   then True
+                   else let msg = "unexpected " ++ debugExpr expr
+                            msg2 = msg ++ "\n REMAINING: " ++ toString rem
+                        in error msg2
+            (Error e) -> error $ "Error: " ++ show e
 
 runEval :: String -> Expr
 runEval toks =

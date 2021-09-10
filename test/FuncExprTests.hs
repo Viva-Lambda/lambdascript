@@ -9,11 +9,12 @@ import Test.HUnit
 import qualified Data.Map as DMap
 
 fnstr :: String
-fnstr = "(seq (fn threearg \n\
-                \ (var1 var2 var3)\n\ 
+fnstr = "(seq (fn threearg: float \n\
+                \ (var1: float var2: float var3: float)\n\ 
                 \ (seq (do * ((do / (var1 var2)) var3)))\
             \ )\
-            \ (do threearg (4.0 2.0 3.0)))"
+            \ ( do threearg (4.0 2.0 3.0) )\
+           \ )"
 
 test1 :: Test
 test1 = TestCase ( 
