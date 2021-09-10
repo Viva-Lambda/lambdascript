@@ -12,8 +12,7 @@ We only have the following data types:
 Here is a hello world for the LambdaScript
 
 ```
-; this is a hello world script for
-; lambdascript
+; this is a hello world script for lambdascript
 (seq "Hello World")
 
 ```
@@ -22,17 +21,17 @@ Here is a function computing a fibonacci sequence
 
 ```
 ; simple fibonacci code with a loop
-(seq (fn fibon (n)
-         (seq (def n1 0.0)
-              (def n2 1.0)
-              (def i 0.0)
+(seq (fn fibon: float (n: float)
+         (seq (def n1: float 0.0)
+              (def n2: float 1.0)
+              (def i: float 0.0)
               (if (do < (n 0.0) )
                   (then (seq n1))
                   (else (seq (loop (do < (i n))
-                                   (then (seq (def sum (do + (n1 n2)))
-                                              (def n1 n2)
-                                              (def n2 sum)
-                                              (def i (do + (i 1.0)))
+                                   (then (seq (def sum: float (do + (n1 n2)))
+                                              (def n1: float n2)
+                                              (def n2: float sum)
+                                              (def i: float (do + (i 1.0)))
                                          )
                                    )
                              )
@@ -42,8 +41,8 @@ Here is a function computing a fibonacci sequence
               )
         )
      )
-    (def x 9.0)
-    (def y (do fibon (x)))
+    (def x: float 9.0)
+    (def y: float (do fibon (x)))
     y
 )
 
