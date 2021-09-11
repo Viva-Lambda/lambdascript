@@ -60,7 +60,7 @@ type Input = [Token]
 type Rest = Input
 
 -- from https://tgdwyer.github.io/parsercombinators/#creating-a-parse-tree
-newtype Parser a = P { parse :: Input -> ParseResult a}
+newtype Parser a = P { parse :: Input -> ParseResult a }
 
 
 data ParseResult a = Error ParseError

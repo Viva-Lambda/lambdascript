@@ -183,7 +183,7 @@ number c cs line col =
                                info = mkTokInfo line col nmlit ""
                                tnb = TokNumber f info
                            in tnb: tokenize noDigit line (col + lenflst)
-                 Nothing -> error ("expecting floating number in " ++ flist)
+                 Nothing -> error $ "expecting floating number in " ++ flist
       _ -> let info = mkTokInfo line col ("numeric literal " ++ (c:digs)) ""
                lendigs = length (c:digs)
                tnb = TokNumber (read (c: digs)) info
