@@ -1,5 +1,5 @@
--- combined parser for ASTree
-module CombinedParser where
+module StatefulParser where
+
 import Lexer hiding (number)
 import Expression
 
@@ -9,66 +9,14 @@ import qualified Data.Map as DMap
 import Control.Monad.State.Lazy
 
 
-{-
-Here is the grammar of the language
-
-expression := <literal> | <varname> | <procedure call>
-
-statement := <conditional>
-            | <assignment>
-            | <procedure definition> 
-            | <loop>
-            | <sequence>
-
-
--- expressions
--- literals
-literal := <boolean> | <number> | <string>
-
-number := <digit>+ | <digit>+.<digit>+
-boolean := true | false
-string := "...any number of char"
-
-identifier := <varname> <typename>
-varname := <letter>+ <digit>*
-letter := a | b | c | d | e | f | ... | A | B | ... | Z
-digit := 0 | ... | 9
-typename := : <varname>
-
-procedural call := (do/yap <operator> <operand>)
-operator := opchar | <varname>
-opchar := + | - | * | / | % | < | > | & | \| | !
-operand := (<expression>*)
-
-assignment := def/tanim <identifier> <expression>
-
-conditional := (eger/if <test> <consequent> <alternate>)
-test := (<literal>) | <procedural call> | (<varname>)
-consequent := (then/ise <sequence>)
-alternate := (else/yoksa <sequence>)
-
-loop := (loop/dongu <test> <consequent>)
--- (loop/dongu (do/yap < (1.6 6.0)) (then/ise fdsak,m))
-
-procedure definition := (fn/edim <identifier> <arguments> <body>)
-arguments := (<identifier>*)
-body := <sequence>
-sequence := ( seq/liste <expression>+ )
--}
-
--- a parser for everything
-
-type KeywordDatabase = DMap.Map String [String]
-
 type Input = [Token]
 type Rest = Input
 
--- from https://tgdwyer.github.io/parsercombinators/#creating-a-parse-tree
--- and http://www.cs.nott.ac.uk/~pszgmh/pearl.pdf
--- https://www.epicc.fc.up.pt/~pbv/aulas/tapf/handouts/parsing.html
-
+type KeywordDatabase = DMap.Map String [String]
 newtype Parser a = P { parse :: Input -> ParseResult a}
 
+data StatefulParser a = StParser {keywords :: KeywordDatabase,
+                                  parser :: (Parser a)}
 
 data ParseResult a = Error ParseError
                    | Result a Rest 
@@ -142,7 +90,7 @@ instance Alternative Parser where
                     (Error _) -> qfn toks
                     (Result _ _) -> pfn toks
         in P {parse = resultfn}
-        
+
 
 
 -- bind one function to another
@@ -160,17 +108,40 @@ instance Monad Parser where
                                             in bresult
                         (Error a) -> (Error a)
         in P {parse = rfn}
-        
+
+
+instance Functor StatefulParser where
+    fmap f StParser {keywords = a, parser = b} = 
+        let fb = fmap f b
+        in StParser {keywords = a, parser = fb}
+
+instance Applicative StatefulParser where
+    pure x = StParser{keywords = DMap.empty,
+                      parser =P{parse = \toks -> Result x toks}}
+
+    -- (<*>) :: f (a -> b) -> f a -> f b
+    -- basically very close to fmap
+    (<*>) fAToB fToA = 
+        let atobkeys = keywords fAToB
+            toakeys = keywords fToA 
+            nonempty = if (DMap.size atobkeys) == 0
+                       then toakeys
+                       else atobkeys
+        in do aToB <- fAToB; toA <- fToA; 
+                let stprs = pure ( aToB toA )
+                    StParser {keywords = a, parser = b} = stprs
+                in StParser {keywords = nonempty ,parser = b}
+
 
 -- lookAhead simply creates a parser for the next character
 -- it permits us to obtain the next character to parse without consuming it
-lookAhead :: Parser Token
-lookAhead = P {parse = parseit}
+lookAhead :: StatefulParser Token
+lookAhead = StParser {parser = P {parse = parseit}, keywords=a}
   where parseit [] = Error UnexpectedEof
         parseit (c:s) = Result c s
 
 
-satisfy :: (Token -> Bool) -> Parser Token
+satisfy :: (Token -> Bool) -> StatefulParser Token
 satisfy predicate = do 
     presult <- lookAhead
     if predicate presult
@@ -188,28 +159,28 @@ isSep :: Token -> Bool
 isSep (TokSep _ _) = True
 isSep _ = False
 
-separator :: Parser Token
+separator :: StatefulParser Token
 separator = satisfy isSep
 
 -- parenthesis parser
 isLPar :: Token -> Bool
 isLPar (TokLPar _) = True
 isLPar _ = False
-lpar :: Parser Token
+lpar :: StatefulParser Token
 lpar = satisfy isLPar
 
 
 isRPar :: Token -> Bool
 isRPar (TokRPar _) = True
 isRPar _ = False
-rpar :: Parser Token
+rpar :: StatefulParser Token
 rpar = satisfy isRPar
 
 
 
 -- expression parser
 
-expression :: Parser Expr
+expression :: StatefulParser Expr
 
 -- parse literals first
 
@@ -219,24 +190,24 @@ isBoolLit :: Token -> Bool
 isBoolLit (TokBool _ _) = True
 isBoolLit _ = False
 
-boolLit :: Parser Token
+boolLit :: StatefulParser Token
 boolLit = satisfy isBoolLit
 
-numberLit :: Parser Token
+numberLit :: StatefulParser Token
 numberLit = satisfy isNumLit
 
 isNumLit :: Token -> Bool
 isNumLit (TokNumber _ _) = True
 isNumLit _ = False
 
-strLit ::  Parser Token
+strLit ::  StatefulParser Token
 strLit = satisfy isStrLit
 
 isStrLit :: Token -> Bool
 isStrLit (TokString _ _) = True
 isStrLit _ = False
 
-literal :: Parser Literal
+literal :: StatefulParser Literal
 literal = do tok <- boolLit; let (TokBool b i) = tok in return (BLit b i)
           <|>
           do ntok <- numberLit; let (TokNumber n j) = ntok in return $ NumLit n j
@@ -246,22 +217,22 @@ literal = do tok <- boolLit; let (TokBool b i) = tok in return (BLit b i)
 -- now parser identifiers
 
 
-varname :: Parser VarName
+varname :: StatefulParser VarName
 varname = do 
    (TokSymbol s i) <- satisfy isSymbol
    return $ VName s i
 
-typename :: Parser TypeName
+typename :: StatefulParser TypeName
 typename = 
     do v <- varname; let (VName _ info) = v in return $ TName v info
 
-identifier :: Parser Identifier
+identifier :: StatefulParser Identifier
 identifier = do v <- varname; _ <- separator; t <- typename; 
                     let (VName _ (TokInfo ln _ _ _)) = v
                     in return $ IdExpr v t ln
 
 -- procedural call parser
-doparser :: Parser Token
+doparser :: StatefulParser Token
 isDo :: Token -> Bool
 doWords :: [String]
 doWords = ["do", "yap"]
@@ -274,19 +245,19 @@ isTokOp (TokOp i _) = True
 isTokOp _ = False
 tokop = satisfy isTokOp
 
-operator :: Parser Operator
+operator :: StatefulParser Operator
 operator = do v <- varname; return $ OpName v
            <|> 
            do (TokOp p t) <- tokop; return $ OpName (VName [p] t)
 
-operand :: Parser Operand
+operand :: StatefulParser Operand
 operand = do 
     _ <- lpar
     exps <- many expression
     _ <- rpar
     return $ OprExpr exps
 
-pcall :: Parser ProcedureCall
+pcall :: StatefulParser ProcedureCall
 pcall = do
     _ <- lpar
     _ <- doparser
@@ -296,7 +267,7 @@ pcall = do
     return $ Proc { op = opt, args = opargs }
 
 -- assignment statement parser
-assign :: Parser Assign
+assign :: StatefulParser Assign
 
 assignWords :: [String]
 assignWords = ["def", "tanim"]
@@ -304,7 +275,7 @@ isAssign :: Token -> Bool
 isAssign (TokSymbol b _) = b `elem` assignWords
 isAssign _ = True
 
-assignWord :: Parser Token
+assignWord :: StatefulParser Token
 assignWord = satisfy isAssign
 
 assign = do
@@ -317,7 +288,7 @@ assign = do
 
 -- condition test statement parser
 
-condtest :: Parser ConditionTest
+condtest :: StatefulParser ConditionTest
 condtest = do _ <- lpar; lit <- literal; _ <- rpar; return $ CTestLit lit
            <|>
            do procCall <- pcall; return $ CTestProc procCall
@@ -333,10 +304,10 @@ isSeqWord :: Token -> Bool
 isSeqWord (TokSymbol b _) = b `elem` seqWords
 isSeqWord _ = False
 
-seqword :: Parser Token
+seqword :: StatefulParser Token
 seqword = satisfy isSeqWord
 
-ssequence :: Parser Sequence
+ssequence :: StatefulParser Sequence
 ssequence = do
     _ <- lpar
     _ <- seqword
@@ -353,10 +324,10 @@ isConseqWord :: Token -> Bool
 isConseqWord (TokSymbol b _) = b `elem` conseqWords
 isConseqWord _ = False
 
-conseqword :: Parser Token
+conseqword :: StatefulParser Token
 conseqword = satisfy isConseqWord
 
-consequence :: Parser Sequence
+consequence :: StatefulParser Sequence
 consequence = do
     _ <- lpar
     _ <- conseqword
@@ -372,10 +343,10 @@ isAlterWord :: Token -> Bool
 isAlterWord (TokSymbol b _) = b `elem` alterWords
 isAlterWord _ = False
 
-alterWord :: Parser Token
+alterWord :: StatefulParser Token
 alterWord = satisfy isAlterWord
 
-alternance :: Parser Sequence
+alternance :: StatefulParser Sequence
 alternance = do
     _ <- lpar
     _ <- alterWord
@@ -391,10 +362,10 @@ isLoopWord :: Token -> Bool
 isLoopWord (TokSymbol b _) = b `elem` loopWords
 isLoopWord _ = False
 
-loopWord :: Parser Token
+loopWord :: StatefulParser Token
 loopWord = satisfy isLoopWord
 
-loopStmt :: Parser Loop
+loopStmt :: StatefulParser Loop
 loopStmt = do
     _ <- lpar
     _ <- loopWord
@@ -412,10 +383,10 @@ isIfWord :: Token -> Bool
 isIfWord (TokSymbol b _) = b `elem` ifWords
 isIfWord _ = False
 
-ifWord :: Parser Token
+ifWord :: StatefulParser Token
 ifWord = satisfy isIfWord
 
-condStmt :: Parser Conditional
+condStmt :: StatefulParser Conditional
 condStmt = do
     _ <- lpar
     _ <- ifWord
@@ -433,10 +404,10 @@ isProcdefWord :: Token -> Bool
 isProcdefWord (TokSymbol b _) = b `elem` procdefWords
 isProcdefWord _ = False
 
-procdefWord :: Parser Token
+procdefWord :: StatefulParser Token
 procdefWord = satisfy isProcdefWord
 
-farguments :: Parser [Identifier]
+farguments :: StatefulParser [Identifier]
 farguments = do
     _ <- lpar
     as <- many identifier
@@ -444,7 +415,7 @@ farguments = do
     return as
 
 
-procDefStmt :: Parser ProcedureDefinition
+procDefStmt :: StatefulParser ProcedureDefinition
 procDefStmt = do
     _ <- lpar
     _ <- procdefWord
@@ -456,7 +427,7 @@ procDefStmt = do
 
 -- Statement parser
 
-statement :: Parser Statement
+statement :: StatefulParser Statement
 
 statement = do astmt <- assign; return $ AssignStmt astmt
             <|>
@@ -475,21 +446,27 @@ isEndExpr EndExpr = True
 isEndExpr _ = False
 isEndExprTok TokEnd =  True
 isEndExprTok _ =  False
-endexpr :: Parser Token
+endexpr :: StatefulParser Token
 endexpr = satisfy isEndExprTok
 
-expression = do lit <- literal; return $ LiteralExpr lit
+expression = do lit <- literal; let litpr = \toks -> LiteralExpr lit
+                                in return $ P {parse = litpr}
             <|> 
-            do ids <- varname; return $ GetExpr ids
+            do ids <- varname; let idpr = \toks -> GetExpr ids
+                               in return $ P {parse = idpr}
             <|> 
             do procCall <- pcall; 
                 let procInfo = procCallInfo procCall
-                in return $ CallExpr procCall procInfo
+                    procpr = \toks -> Result (CallExpr procCall procInfo) toks
+                in return $ P {parse = procpr}
             <|>
-            do stmt <- statement;
-                let sinf = statementInfo stmt in return $ StmtExpr stmt sinf
+            do stmt <- statement; 
+                let sinf = statementInfo stmt 
+                    statpr = \toks -> Result (StmtExpr stmt sinf) toks
+                in return $ P {parse = statpr}
             <|>
-            do e <-endexpr; return $ EndExpr
+            do e <-endexpr; let endpr = \toks -> Result $ EndExpr 
+                            in return $ P {parse = endpr} 
 
 parseExpr :: [Token] -> ParseResult Expr
-parseExpr = parse expression -- accessing P{parse = f} field
+parseExpr kd = parse expression kd -- accessing P{parse = f} field

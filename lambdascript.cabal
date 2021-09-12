@@ -33,6 +33,7 @@ library
       FnNumber
       Lexer
       Parser
+      StatefulParser
   other-modules:
       Paths_lambdascript
   hs-source-dirs:
