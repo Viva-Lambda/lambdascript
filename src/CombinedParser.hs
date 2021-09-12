@@ -5,6 +5,8 @@ import Expression
 
 -- import Text.ParserCombinators.ReadP
 import Control.Applicative
+import qualified Data.Map as DMap
+import Control.Monad.State.Lazy
 
 
 {-
@@ -56,11 +58,18 @@ sequence := ( seq/liste <expression>+ )
 
 -- a parser for everything
 
+type KeywordDatabase = DMap.Map String [String]
+
 type Input = [Token]
 type Rest = Input
 
 -- from https://tgdwyer.github.io/parsercombinators/#creating-a-parse-tree
-newtype Parser a = P { parse :: Input -> ParseResult a }
+-- and http://www.cs.nott.ac.uk/~pszgmh/pearl.pdf
+-- https://www.epicc.fc.up.pt/~pbv/aulas/tapf/handouts/parsing.html
+
+newtype Parser a = P { parse :: Input -> ParseResult a}
+
+type StatefulParser a = State KeywordDatabase (Parser a)
 
 
 data ParseResult a = Error ParseError
@@ -112,7 +121,9 @@ instance Applicative Parser where
   (<*>) fAToB fToA = do
         aToB <- fAToB
         toA <- fToA
-        pure $ aToB toA
+        pure $ aToB toA in if (keywords fAToB) == (DMap.fromList [("",[])])
+                                    then P {parse = parse pr, keywords = keywords fToA}
+                                    else P {parse = parse pr, keywords = keywords fAToB}
 
 
 -- alternative is a monoid on applicative functors
@@ -121,7 +132,7 @@ instance Alternative Parser where
     -- empty :: f a
     -- empty always fails whatever the token is
     empty = let pf = \toks -> Error $ UnexpectedInput toks
-            in P { parse = pf}
+            in P { parse = pf, keywords =  DMap.fromList [("",[])]}
 
 
     -- choice function, apply first if fails, try the other one
@@ -134,7 +145,11 @@ instance Alternative Parser where
                 case pfn toks of
                     (Error _) -> qfn toks
                     (Result _ _) -> pfn toks
-        in P {parse = resultfn}
+        in 
+            case (keywords q) == (DMap.fromList [("", [])]) of
+                True -> P {parse = resultfn, keywords = keywords p}
+                False -> P {parse = resultfn, keywords = keywords q}
+        
 
 
 -- bind one function to another
@@ -142,7 +157,7 @@ instance Monad Parser where
     return = pure
 
     -- (>>=) :: Parser a -> (a -> Parser b) -> Parser b
-    (>>=) (P {parse = toksToA}) fn = 
+    (>>=) (P {parse = toksToA, keywords = kwords}) fn = 
         let rfn = \toks -> 
                     case toksToA toks of
                         (Result a rest) -> let parserb = fn a -- gives Parser b
@@ -151,27 +166,34 @@ instance Monad Parser where
                                                bresult = bfn rest
                                             in bresult
                         (Error a) -> (Error a)
-        in P {parse = rfn}
+        in P {parse = rfn, keywords = kwords}
         
 
 -- lookAhead simply creates a parser for the next character
 -- it permits us to obtain the next character to parse without consuming it
 lookAhead :: Parser Token
-lookAhead = P {parse = parseit}
+lookAhead = P {parse = parseit, keywords = DMap.fromList [("", [])]}
   where parseit [] = Error UnexpectedEof
         parseit (c:s) = Result c s
 
 
 satisfy :: (Token -> Bool) -> Parser Token
 satisfy predicate = do 
-    c <- lookAhead
-    if predicate c
-    then pure c -- return c | liftA2 c
+    presult <- lookAhead
+    if predicate presult
+    then pure presult -- return c | liftA2 c
     else empty
 
 is :: Token -> Parser Token
 is c = satisfy (== c)
 
+iskey :: String -> String -> Parser a -> Bool
+iskey str kword p =
+    let kwords = keywords p
+        isMem = DMap.member kword kwords
+    in if isMem
+       then str `elem` (kwords DMap.! kword)
+       else False
 -- parsing basic tokens
 isSymbol :: Token -> Bool
 isSymbol (TokSymbol _ _) = True
@@ -258,9 +280,21 @@ isDo :: Token -> Bool
 doWords :: [String]
 doWords = ["do", "yap"]
 isDo (TokSymbol b _) = b `elem` doWords
-isDo _ = True
+isDo _ = False
+
+isDo2 :: Token -> Parser a -> Bool
+isDo2 (TokSymbol b _) pr = iskey b "do" pr
+isDo2 _ _ = False
 
 doparser = satisfy isDo
+doparser2 :: Parser Token -> Parser Token
+doparser2 a = let kwords = keywords a in do
+                                            tok <- lookAhead
+                                            case isDo2 tok a of
+                                                True -> let pr = pure tok
+                                                        in P {parse = parse pr,
+                                                              keywords = kwords}
+                                                False -> empty
 
 isTokOp (TokOp i _) = True
 isTokOp _ = False
@@ -478,7 +512,7 @@ expression = do lit <- literal; return $ LiteralExpr lit
                 let procInfo = procCallInfo procCall
                 in return $ CallExpr procCall procInfo
             <|>
-            do stmt <- statement; 
+            do stmt <- statement;
                 let sinf = statementInfo stmt in return $ StmtExpr stmt sinf
             <|>
             do e <-endexpr; return $ EndExpr
