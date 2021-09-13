@@ -12,10 +12,15 @@ import Control.Monad.State.Lazy
 type Input = [Token]
 type Rest = Input
 
-type KeywordDatabase = DMap.Map String [String]
+type ParserState = DMap.Map String [String]
+
+emptyState :: ParserState
+emptyState = DMap.empty
+
+
 newtype Parser a = P { parse :: Input -> ParseResult a}
 
-data StatefulParser a = StParser {keywords :: KeywordDatabase,
+data StatefulParser a = StParser {parserState :: ParserState,
                                   parser :: (Parser a)}
 
 data ParseResult a = Error ParseError
@@ -91,7 +96,23 @@ instance Alternative Parser where
                     (Result _ _) -> pfn toks
         in P {parse = resultfn}
 
+instance Alternative StatefulParser where
+    -- empty :: f a
+    -- empty always fails whatever the token is
+    empty = let pf = \toks -> Error $ UnexpectedInput toks
+                prsr = P {parse = pf}
+            in StParser{parser = prsr, parserState = emptyState}
 
+    p <|> q = let pprsr = parser p
+                  qprsr = parser q
+                  rprsr = pprsr <|> qprsr
+                  pstate = parserState p
+                  qstate = parserState q
+                  nonempty = if (DMap.size pstate) == 0
+                             then qstate
+                             else pstate
+              in StParser {parser = rprsr, parserState = nonempty}
+                   
 
 -- bind one function to another
 instance Monad Parser where
@@ -111,32 +132,49 @@ instance Monad Parser where
 
 
 instance Functor StatefulParser where
-    fmap f StParser {keywords = a, parser = b} = 
+    fmap f StParser {parserState = a, parser = b} = 
         let fb = fmap f b
-        in StParser {keywords = a, parser = fb}
+        in StParser {parserState = a, parser = fb}
 
 instance Applicative StatefulParser where
-    pure x = StParser{keywords = DMap.empty,
+    pure x = StParser{parserState = DMap.empty,
                       parser =P{parse = \toks -> Result x toks}}
 
     -- (<*>) :: f (a -> b) -> f a -> f b
     -- basically very close to fmap
     (<*>) fAToB fToA = 
-        let atobkeys = keywords fAToB
-            toakeys = keywords fToA 
+        let atobkeys = parserState fAToB
+            toakeys = parserState fToA 
             nonempty = if (DMap.size atobkeys) == 0
                        then toakeys
                        else atobkeys
         in do aToB <- fAToB; toA <- fToA; 
                 let stprs = pure ( aToB toA )
-                    StParser {keywords = a, parser = b} = stprs
-                in StParser {keywords = nonempty ,parser = b}
+                    StParser {parserState = a, parser = b} = stprs
+                in StParser {parserState = nonempty ,parser = b}
+
+instance Monad StatefulParser where
+    --
+    -- (>>=) :: StatefulParser a -> (a -> StatefulParser b) -> StatefulParser b
+    sta >>= f = 
+        let pstate = parserState sta
+            prsr = parser sta
+            pfn = parse prsr
+            bfn = \toks -> case pfn toks of
+                                (Error perr) -> Error perr
+                                (Result r rest) -> let bparser = f r
+                                                       bprsr = parser bparser
+                                                       bfn = parse bprsr
+                                                   in bfn rest
+            parserB = P {parse = bfn}
+        in StParser {parser = parserB, parserState = pstate}
+    
 
 
 -- lookAhead simply creates a parser for the next character
 -- it permits us to obtain the next character to parse without consuming it
 lookAhead :: StatefulParser Token
-lookAhead = StParser {parser = P {parse = parseit}, keywords=a}
+lookAhead = StParser {parser = P {parse = parseit}, parserState=emptyState}
   where parseit [] = Error UnexpectedEof
         parseit (c:s) = Result c s
 
@@ -148,7 +186,7 @@ satisfy predicate = do
     then pure presult -- return c | liftA2 c
     else empty
 
-is :: Token -> Parser Token
+is :: Token -> StatefulParser Token
 is c = satisfy (== c)
 
 -- parsing basic tokens
@@ -449,24 +487,22 @@ isEndExprTok _ =  False
 endexpr :: StatefulParser Token
 endexpr = satisfy isEndExprTok
 
-expression = do lit <- literal; let litpr = \toks -> LiteralExpr lit
-                                in return $ P {parse = litpr}
+expression = do lit <- literal; return $ LiteralExpr lit
             <|> 
-            do ids <- varname; let idpr = \toks -> GetExpr ids
-                               in return $ P {parse = idpr}
+            do ids <- varname; return $ GetExpr ids
             <|> 
             do procCall <- pcall; 
                 let procInfo = procCallInfo procCall
-                    procpr = \toks -> Result (CallExpr procCall procInfo) toks
-                in return $ P {parse = procpr}
+                in return $ CallExpr procCall procInfo
             <|>
             do stmt <- statement; 
                 let sinf = statementInfo stmt 
-                    statpr = \toks -> Result (StmtExpr stmt sinf) toks
-                in return $ P {parse = statpr}
+                in return $ StmtExpr stmt sinf
             <|>
-            do e <-endexpr; let endpr = \toks -> Result $ EndExpr 
-                            in return $ P {parse = endpr} 
+            do e <-endexpr; return EndExpr 
 
 parseExpr :: [Token] -> ParseResult Expr
-parseExpr kd = parse expression kd -- accessing P{parse = f} field
+parseExpr kd = let sprsr = expression -- accessing P{parse = f} field
+                   expParser = parser sprsr
+                   expfn = parse expParser
+               in expfn kd
