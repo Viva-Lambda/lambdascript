@@ -2,7 +2,8 @@
 module Evaluator where
 import Lexer
 -- import Parser
-import StatefulParser
+-- import StatefulParser
+import CombinedParser
 import Expression
 import FnNumber
 import FnBool
@@ -351,7 +352,8 @@ exprCheck arg expected =
 runEval :: String -> Expr
 runEval toks =
     let tp = tokenize toks 0 0
-        pexps = parseExpr tp
+        kws = DMap.fromList [("do", ["do", "yap"])]
+        pexps = parseExpr kws tp
     in
         case pexps of
             (Result res rem) -> let act = runState $ evaluate res

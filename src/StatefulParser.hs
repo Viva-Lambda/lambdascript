@@ -12,16 +12,15 @@ import Control.Monad.State.Lazy
 type Input = [Token]
 type Rest = Input
 
-type ParserState = DMap.Map String [String]
+type ParsingState = DMap.Map String [String]
 
-emptyState :: ParserState
+emptyState :: ParsingState
 emptyState = DMap.empty
 
 
 newtype Parser a = P { parse :: Input -> ParseResult a}
 
-data StatefulParser a = StParser {parserState :: ParserState,
-                                  parser :: (Parser a)}
+newtype StatefulParser a = StParser (ParsingState -> (Parser a, ParsingState))
 
 data ParseResult a = Error ParseError
                    | Result a Rest 
@@ -101,7 +100,7 @@ instance Alternative StatefulParser where
     -- empty always fails whatever the token is
     empty = let pf = \toks -> Error $ UnexpectedInput toks
                 prsr = P {parse = pf}
-            in StParser{parser = prsr, parserState = emptyState}
+            in prsr
 
     p <|> q = let pprsr = parser p
                   qprsr = parser q
@@ -112,7 +111,8 @@ instance Alternative StatefulParser where
                              then qstate
                              else pstate
               in StParser {parser = rprsr, parserState = nonempty}
-                   
+                 
+-}
 
 -- bind one function to another
 instance Monad Parser where
@@ -131,6 +131,7 @@ instance Monad Parser where
         in P {parse = rfn}
 
 
+{-
 instance Functor StatefulParser where
     fmap f StParser {parserState = a, parser = b} = 
         let fb = fmap f b
@@ -169,14 +170,16 @@ instance Monad StatefulParser where
             parserB = P {parse = bfn}
         in StParser {parser = parserB, parserState = pstate}
     
-
+-}
 
 -- lookAhead simply creates a parser for the next character
 -- it permits us to obtain the next character to parse without consuming it
 lookAhead :: StatefulParser Token
-lookAhead = StParser {parser = P {parse = parseit}, parserState=emptyState}
-  where parseit [] = Error UnexpectedEof
-        parseit (c:s) = Result c s
+lookAhead = do
+    s <- get
+    let prsr = P {parse = parseit} in StateT s prsr
+      where parseit [] = Error UnexpectedEof
+            parseit (c:s) = Result c s
 
 
 satisfy :: (Token -> Bool) -> StatefulParser Token
@@ -185,6 +188,15 @@ satisfy predicate = do
     if predicate presult
     then pure presult -- return c | liftA2 c
     else empty
+
+-- check whether the token is a keyword using previous parser state
+iskey :: String -> Token -> StatefulParser a -> Bool
+iskey keystr (TokSymbol s info) sp = 
+    let ps = get sp
+        kwords = DMap.member keystr ps
+    in case kwords of
+            True -> elem s (ps DMap.! keystr)
+            False -> False
 
 is :: Token -> StatefulParser Token
 is c = satisfy (== c)
@@ -277,6 +289,17 @@ doWords = ["do", "yap"]
 isDo (TokSymbol b _) = b `elem` doWords
 isDo _ = False
 
+isDo2 :: Token -> StatefulParser a -> Bool
+isDo2 tok prev = iskey "do" tok prev
+
+doparser2 :: StatefulParser Token
+doparser2 prev = do
+                    pres <- lookAhead
+                    if isDo2 pres prev
+                    then pure pres
+                    else empty
+                            
+
 doparser = satisfy isDo
 
 isTokOp (TokOp i _) = True
@@ -298,7 +321,8 @@ operand = do
 pcall :: StatefulParser ProcedureCall
 pcall = do
     _ <- lpar
-    _ <- doparser
+    -- let st = parserState lpar in error $ "parser state: " ++ show st
+    _ <- doparser lpar
     opt <- operator
     opargs <- operand
     _ <- rpar
@@ -503,6 +527,12 @@ expression = do lit <- literal; return $ LiteralExpr lit
 
 parseExpr :: [Token] -> ParseResult Expr
 parseExpr kd = let sprsr = expression -- accessing P{parse = f} field
-                   expParser = parser sprsr
-                   expfn = parse expParser
+                   expfn = parse sprsr
                in expfn kd
+
+type Keywords = DMap.Map String [String]
+
+parseExpr2 :: Keywords -> [Token] -> ParseResult Expr
+parseExpr2 kwords kd = let expParser = put kwords expression
+                           expfn = parse expParser
+                       in expfn kd
