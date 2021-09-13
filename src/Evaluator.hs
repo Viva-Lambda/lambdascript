@@ -2,7 +2,7 @@
 module Evaluator where
 import Lexer
 -- import Parser
-import CombinedParser
+import StatefulParser
 import Expression
 import FnNumber
 import FnBool
