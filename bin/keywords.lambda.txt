@@ -1,6 +1,6 @@
-seq liste lîsteya قائمة tableau لیست List 
+seq liste lîsteya قائمة tableau لیست List
 do yap wê-bike افعل faire انجام-دهید tun
-if eğer eger لو si اگر wenn 
+if eğer eger لو si اگر wenn
 def tanım binavkirin حدد déf مشخص-کردن beschreib
 loop dongu çerxeke حلقه-زدن boucle حلقه-زدن Schleife
 fn edim karî وظيفة fonction عملکرد Prozedur

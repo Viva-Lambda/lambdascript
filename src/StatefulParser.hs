@@ -143,7 +143,7 @@ parseKeyword key msg kwords ts =
                         msg2 = msg ++  " because it is not found in keyword"
                         msg3 = msg2 ++ " database."
                     in Left msg3
-        t -> Left $ parseError (TokSymbol b i) msg
+        t -> Left $ parseError t msg
 
 
 parseDo :: Keywords -> [Token] -> ParseResult Token
@@ -153,7 +153,7 @@ parseProcedureCall :: Keywords -> [Token] -> ParseResult ProcedureCall
 
 parseProcedureCall k ts =
     case lookAHead ts of
-        (TokLPar i) -> 
+        (TokLPar i) ->
             case parseDo k (accept ts) of
                 (Left r) -> Left r
                 (Right (kk, stexpr, toks)) ->
@@ -165,10 +165,12 @@ parseProcedureCall k ts =
                                 (Right (kk3, opandSt, toks2)) ->
                                     case lookAHead toks2 of
                                        (TokRPar j) ->
-                                            let {stRes = \st -> 
-                                                let { (oper, st2) = operSt st;
-                                                    (operargs, st3) = opandSt st2}
-                                                in (Proc {op = oper, args = operargs}, st3)}
+                                            let {
+        stRes = \st -> let { (oper, st2) = operSt st;
+                             (operargs, st3) = opandSt st2;
+                           }
+                       in (Proc {op = oper, args = operargs}, st3)
+                                                }
                                             in Right (k, StResult stRes, accept toks2)
                 t -> Left $ parseError t "procedure call"
         t -> Left $ parseError t "procedure call"
@@ -181,17 +183,177 @@ parseDef kwords ts = parseKeyword "def" "assignment marker" kwords ts
 parseAssignment :: Keywords -> [Token] -> ParseResult Assign
 parseAssignment k ts =
     case lookAHead ts of
-        (TokLPar i) -> 
-            let (k2, defSt, ts2) = parseDef k (accept ts)
-                (k3, idSt, ts3) = parseIdentifier k2 ts2
-                (k4, exprSt, ts4) = parseExpr k3 ts3
-                stResfn = \stR -> let (defWord, stRdef) = defSt stR
-                                      (ident, stRId) = idSt stRdef
-                                      (expr, stRExpr) = exprSt stRId
-                                  in (Assigner ident expr, stRExpr)
-            in case lookAHead ts4 of
-                    (TokRPar j) -> (k4, StResult stResfn, accept ts4)
-                    t -> Left t "assignment expression"
+        (TokLPar i) ->
+            case parseDef k (accept ts) of
+                (Left err) -> Left err
+                -- defStateVal :: (ParsingState -> (a, ParsingState))
+                (Right (k2, defStateVal, ts2)) ->
+                    case parseIdentifier k2 ts2 of
+                        (Left err) -> Left err
+                        (Right (k3, idStateVal, ts3)) ->
+                            case parseExpr k3 ts3 of
+                                (Left err) -> Left err
+                                (Right (k4, exprStateVal, ts4)) ->
+                                    case lookAHead ts4 of
+                                        (TokRPar j) ->
+                                            let {
+            stfn = \stVal -> let (defWord, stateDef) = defStateVal stVal;
+                                 (identif, stateId) = idStateVal stateDef;
+                                 (expr, stateExpr) = exprStateVal stateId;
+                             in (Assigner identif expr, stateExpr)
+                                                }
+                                            in Right (k4, StResult stfn, accept ts4)
+                                        t -> Left $ parseError t "assignment"
+        t -> Left $ parseError t "assignment expression"
 
-        t -> Left t "assignment expression"
+-- sequence
+-- parse seq keyword
+parseSeq :: Keywords -> [Token] -> ParseResult Token
+parseSeq kwords ts = parseKeyword "seq" "sequence marker" kwords ts 
 
+parseSequence :: Keywords -> [Token] -> ParseResult Sequence
+parseSequence k ts =
+    case lookAHead ts of
+        (TokLPar i) ->
+            case parseSeq k (accept ts) of
+                (Left err) -> Left err
+                (Right (k2, seqStateVal, ts2)) ->
+                    case parseExprAll k2 ts2 of
+                        (Left err) -> Left err
+                        (Right (k3, exprStateVal, ts3)) ->
+                            case lookAHead ts3 of
+                                (TokRPar j) ->
+                                    let {
+                                        stfn = \stVal ->
+                                        let (seqWord, stateSeq) = seqStateVal stVal
+                                            (exprs, stateExpr) = exprStateVal stateSeq
+                                        in (fromExprToSeq exprs, stateExpr)
+                                        }
+                                    in Right (k3, StResult stfn, accept ts3)
+                                t -> Left $ parseError t "sequence"
+        t -> Left $ parseError t "sequence"
+
+-- loop
+-- parse loop keyword
+parseLoopWord :: Keywords -> [Token] -> ParseResult Token
+parseLoopWord kwords ts = parseKeyword "loop" "loop marker" kwords ts 
+
+parseTest :: Keywords -> [Token] -> ParseResult ConditionTest
+
+parseTest k ts =
+    case parseProcedureCall k ts of
+        (Right (k2, procState, ts2)) ->
+            let {
+        stfn = \stVal -> let (procVal, stateProc) = procState stVal
+                         in (CTestProc procVal, stateProc)
+                }
+            in Right (k2, StResult stfn, ts2)
+        (Left _) ->
+            case lookAHead ts of
+                (TokLPar i) ->
+                    case parseLit k (accept ts) of
+                        (Right (k2, litState, ts2)) ->
+                            let {
+        stfn = \stVal -> let (litval, stateLit) = litState stVal
+                         in (CTestLit litval, stateLit);
+        ts3 = accept ts2;
+                                }
+                            in case lookAHead ts3 of
+                                    (TokRPar j) -> Right (k2, StResult stfn, accept ts3)
+                                    t -> Left $ parseError t "literal condition test"
+                        (Left _) ->
+                            case parseVarName k (accept ts) of
+                                (Right (k2, varState, ts2) ) ->
+                                    let {
+                stfn = \stVal -> let (varval, stateVar) = varState stVal
+                                 in (CTestVar varval, stateVar);
+                ts3 = accept ts2;
+                                        }
+                                    in case lookAHead ts3 of
+                                            (TokRPar j) -> Right (k2, StResult stfn, accept ts3)
+                                            t -> Left $ parseError t "condition test"
+                t -> Left $ parseError t "condition test"
+
+                                                    
+-- consequent
+
+parseThen :: Keywords -> [Token] -> ParseResult Token
+parseThen kwords ts = parseKeyword "then" "consequence marker" kwords ts 
+
+parseConsequent :: Keywords -> [Token] -> ParseResult Sequence
+
+parseConsequent kwords ts =
+    case lookAHead ts of
+        (TokLPar i) ->
+            case parseThen kwords (accept ts) of
+                (Left e) -> Left e 
+                (Right (k2, thenState, ts2)) ->
+                    case parseSequence k2 ts2 of
+                        (Left e) -> Left e
+                        (Right (k3, seqState, ts3)) ->
+                            case lookAHead ts3 of
+                                (TokRPar j) ->
+                                    let {
+            stfn = \stVal -> let (thenWord, stateThen) = thenState stVal
+                                 (seqVal, stateSeq) = seqState stateThen
+                             in (seqVal, stateSeq);
+                                        }
+                                    in (k3, StResult stfn, accept ts3)
+                                t -> Left $ parseError t "consequence marker"
+        t -> Left $ parseError t "consequence marker"
+
+
+parseLoop :: Keywords -> [Token] -> ParseResult Loop
+parseLoop k ts =
+    case lookAHead ts of
+        (TokLPar i) ->
+            case parseLoopWord k (accept ts) of
+                (Left e) -> Left e
+                (Right (k2, lwordState, ts2)) ->
+                    case parseTest k2 ts2 of
+                        (Left e) -> Left e
+                        (Right (k3, ltestState, ts3)) ->
+                            case parseConsequent k3 ts3 of
+                                (Left e) -> Left e
+                                (Right (k4, lconseqState, ts4)) ->
+                                    case lookAHead ts4 of
+                                        (TokRPar j) ->
+                                            let {
+        stfn = \stVal -> let (lword, stateLword) = lwordState stVal
+                             (lTest, stateLTest) = ltestState stateLword
+                             (lCons, stateLConseq) = lconseqState stateLTest
+                         in (Looper {ltest = lTest, lconsequent = lCons}, stateLConseq)
+                                                }
+                                            in Right (k4, StResult stfn, accept ts4)
+                                        t -> Left $ parseError t "loop marker"
+        t -> Left $ parseError t "loop marker"
+
+
+--
+
+parseElse :: Keywords -> [Token] -> ParseResult Token
+parseElse kwords ts = parseKeyword "else" "alternate marker" kwords ts 
+
+
+parseAlternate :: Keywords -> [Token] -> ParseResult Sequence
+parseAlternate kwords ts =
+    case lookAHead ts of
+        (TokLPar i) ->
+            case parseElse kwords (accept ts) of
+                (Left e) -> Left e 
+                (Right (k2, elseState, ts2)) ->
+                    case parseSequence k2 ts2 of
+                        (Left e) -> Left e
+                        (Right (k3, seqState, ts3)) ->
+                            case lookAHead ts3 of
+                                (TokRPar j) ->
+                                    let {
+            stfn = \stVal -> let (thenWord, stateElse) = elseState stVal
+                                 (seqVal, stateSeq) = seqState stateElse
+                             in (seqVal, stateSeq);
+                                        }
+                                    in (k3, StResult stfn, accept ts3)
+                                t -> Left $ parseError t "alternate marker"
+        t -> Left $ parseError t "alternate marker"
+
+-- loop
