@@ -7,13 +7,13 @@ import Lexer
 
 -- numeric expression function
 numBinExprFn :: (Double -> Double -> Double) -> Expr -> Expr -> Expr
-numBinExprFn fn (LiteralExpr (NumLit a i)) (LiteralExpr (NumLit b j)) =
+numBinExprFn fn (LiteralExpr (NumLit a i)) (GetExpr (GetLit (NumLit b j))) =
     let val = a `fn` b
         TokInfo {lineNumber = ta, colNumber = tc,
                  tokDescription = td, tokContext = tcon} = joinTokInfo i j
         ndescr = "line: " ++ show ta ++ " " ++ td
         info = mkTokInfo ta tc ndescr tcon
-    in LiteralExpr (NumLit val info)
+    in GExpr $ GetLit (NumLit val info)
 
 numBinExprFn _ a b = 
     let linea = debugExpr a
@@ -23,13 +23,13 @@ numBinExprFn _ a b =
     in error msg2
 
 cmpBinExprFn :: (Double -> Double -> Bool) -> Expr -> Expr -> Expr
-cmpBinExprFn fn (LiteralExpr (NumLit a i)) (LiteralExpr (NumLit b j)) = 
+cmpBinExprFn fn (GExpr (GetExpr (NumLit a i))) (GExpr (GetExpr (NumLit b j))) = 
     let val = a `fn` b
         TokInfo {lineNumber = ta, colNumber = tc,
                  tokDescription = td, tokContext = tcon} = joinTokInfo i j
         ndescr = "line: " ++ show ta ++ " " ++ td
         info = mkTokInfo ta tc ndescr tcon
-    in LiteralExpr (BLit val info)
+    in GExpr $ GetLit (BLit val info)
 
 cmpBinExprFn _ a b = 
     let linea = debugExpr a

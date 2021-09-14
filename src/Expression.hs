@@ -5,7 +5,7 @@ import Lexer
 {-
 Here is the grammar of the language
 
-expression := <literal> | <identifier> | <procedure call>
+expression := <get> | <procedure call>
 
 statement := <conditional>
             | <assignment>
@@ -15,6 +15,8 @@ statement := <conditional>
 
 
 -- expressions
+get := <varname> | <literal> <typename>
+
 -- literals
 literal := <boolean> | <number> | <string>
 
@@ -143,38 +145,49 @@ debugLiteral a =
             let msg = debugTokenInfo info
             in m ++ msg ++ "}"
 
-data Expr = LiteralExpr Literal -- eval written
-            | GetExpr VarName
+data Expr = GExpr GetExpr
             | CallExpr ProcedureCall TokenInfo
             | StmtExpr Statement TokenInfo --
             | EndExpr
 
-
 instance Show Expr where
-    show (LiteralExpr a ) = show a
-    show (GetExpr a) = show a
+    show (GExpr v) = show v
     show (CallExpr a _) = show a
     show (StmtExpr a _) = show a
     show EndExpr = ""
 
 debugExpr :: Expr -> String
-debugExpr (LiteralExpr a) = "LiteralExpr " ++ debugLiteral a
-debugExpr (GetExpr a) = "GetExpr " ++ debugVarName a
+debugExpr (GExpr a) = "GetExpr " ++ debugGetExpr a
 debugExpr (CallExpr a i) = "CallExpr " ++ debugProcCall a ++ " at line " ++ show i
 debugExpr (StmtExpr a i) = "StmtExpr " ++ debugStatement a ++ " at line " ++ show i
 debugExpr EndExpr = "EndExpr" 
 
 instance Eq Expr where
-    (LiteralExpr a ) == (LiteralExpr b ) = a == b
-    (LiteralExpr _ ) == _ = False
-    (GetExpr a) == (GetExpr b) = a == b
-    (GetExpr _) == _ = False
+    (GExpr a) == (GExpr b) = a == b
+    (GExpr _) == _ = False
     (CallExpr a _) == (CallExpr b _) = a == b
     (CallExpr _ _) == _ = False
     (StmtExpr a _) == (StmtExpr b _) = a == b
     (StmtExpr _ _) == _ = False
     EndExpr == EndExpr = True
     EndExpr == _ = False
+
+data GetExpr = GetVName VarName
+               | GetLit Literal
+
+instance Show GetExpr where
+    show (GetVName v) = show v
+    show (GetLit v) = show v
+
+instance Eq GetExpr where
+    (GetVName a) == (GetVName b) = a == b
+    (GetVName _) == _ = False
+    (GetLit a) == (GetLit b) = a == b
+    (GetLit _) == _ = False
+
+debugGetExpr :: GetExpr -> String
+debugGetExpr (GetVName v) = debugVarName v
+debugGetExpr (GetLit v) = debugLiteral v
 
 
 data ProcedureCall = Proc {op :: Operator, args :: Operand}
@@ -190,7 +203,7 @@ debugProcCall (Proc o iseq) =
     "Procedure Call with Operator " ++ show o ++ " and Operand " ++ show iseq
 
 procCallInfo :: ProcedureCall -> TokenInfo
-procCallInfo Proc {op=OpName (VName v i), args=a} = i
+procCallInfo Proc {op=OpName (VName _ i), args=_} = i
 
 data Operator = OpName VarName
 
@@ -256,29 +269,29 @@ debugStatement (ProcDefStmt a) =
 debugStatement (SeqStmt a) = "Sequence statement " ++ debugSequence a
 
 statementInfo :: Statement -> TokenInfo
-statementInfo (AssignStmt (Assigner aid expr)) =
+statementInfo (AssignStmt (Assigner aid _)) =
     let IdExpr (VName _ info) _ _ = aid
     in info
-statementInfo (CondStmt (Cond {ctest = a, consequent = b, alternate = c})) =
+statementInfo (CondStmt (Cond {ctest = a, consequent = _, alternate = _})) =
     case a of
         (CTestLit d) -> getLitTokenInfo d
         (CTestProc d) -> procCallInfo d
         (CTestVar (VName _ info)) -> info
 
-statementInfo (LoopStmt (Looper {ltest = a, lconsequent = b})) =
+statementInfo (LoopStmt (Looper {ltest = a, lconsequent = _})) =
     case a of
         (CTestLit d) -> getLitTokenInfo d
         (CTestProc d) -> procCallInfo d
         (CTestVar (VName _ info)) -> info
 
-statementInfo (SeqStmt (SeqExpr {parent = a, child = b})) = getExprInfo a
+statementInfo (SeqStmt (SeqExpr {parent = a, child = _})) = getExprInfo a
 statementInfo (ProcDefStmt pdef) =
-    let IdExpr (VName v info) _ _ = procname pdef
+    let IdExpr (VName _ info) _ _ = procname pdef
     in info
 
 getExprInfo :: Expr -> TokenInfo
-getExprInfo (LiteralExpr li) = getLitTokenInfo li
-getExprInfo (GetExpr (VName _ i) ) = i
+getExprInfo (GExpr (GetVName (VName _ i))) = i
+getExprInfo (GExpr (GetLit i) ) = getLitTokenInfo i
 getExprInfo (CallExpr _ i) = i
 getExprInfo (StmtExpr _ i) = i 
 getExprInfo EndExpr = mkTokInfo (-1) (-1) "end of expression" ""
@@ -372,8 +385,8 @@ reduceExpr [] = EndExpr
 
 reduceExpr (e:es) =
     let children = reduceExpr es
-        seq = SeqExpr {parent = e, child = children}
-        stmt = SeqStmt seq
+        seqe = SeqExpr {parent = e, child = children}
+        stmt = SeqStmt seqe
     in StmtExpr stmt (getExprInfo e)
 
 fromExprToSeq :: [Expr] -> Sequence
@@ -384,17 +397,17 @@ fromSeqToExprs :: Sequence -> [Expr]
 -- end of sequence
 fromSeqToExprs SeqExpr {parent = EndExpr, child=EndExpr} = []
 -- skip parent sequence
-fromSeqToExprs SeqExpr {parent = EndExpr, child=StmtExpr (SeqStmt s) i} = fromSeqToExprs s
+fromSeqToExprs SeqExpr {parent = EndExpr, child=StmtExpr (SeqStmt s) _} = fromSeqToExprs s
 -- skip child sequence
-fromSeqToExprs SeqExpr {parent = StmtExpr (SeqStmt s) i, child=EndExpr} = fromSeqToExprs s
+fromSeqToExprs SeqExpr {parent = StmtExpr (SeqStmt s) _, child=EndExpr} = fromSeqToExprs s
 -- both are sequences
-fromSeqToExprs SeqExpr {parent = StmtExpr (SeqStmt s) i, child=StmtExpr (SeqStmt a) j} = 
+fromSeqToExprs SeqExpr {parent = StmtExpr (SeqStmt s) _, child=StmtExpr (SeqStmt a) _} = 
     fromSeqToExprs s ++ fromSeqToExprs a
 -- only parent is a sequence
-fromSeqToExprs SeqExpr {parent = StmtExpr (SeqStmt s) i, child=a} = 
+fromSeqToExprs SeqExpr {parent = StmtExpr (SeqStmt s) _, child=a} = 
     fromSeqToExprs s ++ [a]
 -- only child is a sequence
-fromSeqToExprs SeqExpr {parent = a, child=StmtExpr (SeqStmt s) i} = [a] ++ fromSeqToExprs s
+fromSeqToExprs SeqExpr {parent = a, child=StmtExpr (SeqStmt s) _} = [a] ++ fromSeqToExprs s
 -- both are not a sequence
 fromSeqToExprs SeqExpr {parent = a, child = b} = [a] ++ [b]
 

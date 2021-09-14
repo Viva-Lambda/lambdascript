@@ -5,13 +5,16 @@ import Lexer
 import Expression
 
 boolBinExprFn :: (Bool -> Bool -> Bool) -> Expr -> Expr -> Expr
-boolBinExprFn fn (LiteralExpr (BLit a i)) (LiteralExpr (BLit b j)) =
+boolBinExprFn 
+    fn
+    (GExpr (GetExpr (GetLit (BLit a i))))
+    (GExpr (GetExpr (GetLit (BLit b j)))) =
     let val = a `fn` b
         TokInfo {lineNumber = ta, colNumber = tc,
                  tokDescription = td, tokContext = tcon} = joinTokInfo i j
         ndescr = "line: " ++ show ta ++ " " ++ td
         info = mkTokInfo ta tc ndescr tcon
-    in LiteralExpr ( BLit val info)
+    in GExpr $ GetExpr (GetLit ( BLit val info))
 
 boolBinExprFn _ a b =
     let linea = debugExpr a

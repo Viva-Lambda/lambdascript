@@ -272,6 +272,7 @@ doparser = satisfy isDo
 
 isTokOp (TokOp i _) = True
 isTokOp _ = False
+tokop :: Parser Token
 tokop = satisfy isTokOp
 
 operator :: Parser Operator
@@ -478,9 +479,9 @@ isEndExprTok _ =  False
 endexpr :: Parser Token
 endexpr = satisfy isEndExprTok
 
-expression = do lit <- literal; return $ LiteralExpr lit
+expression = do lit <- literal; return $ GExpr (GetLit lit)
             <|> 
-            do ids <- varname; return $ GetExpr ids
+            do ids <- varname; return $ GExpr (GetVName ids)
             <|> 
             do procCall <- pcall; 
                 let procInfo = procCallInfo procCall

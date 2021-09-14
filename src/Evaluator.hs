@@ -2,8 +2,8 @@
 module Evaluator where
 import Lexer
 -- import Parser
--- import StatefulParser
-import CombinedParser
+import StatefulParser
+-- import CombinedParser
 import Expression
 import FnNumber
 import FnBool
