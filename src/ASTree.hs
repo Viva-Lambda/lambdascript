@@ -5,23 +5,23 @@ import Lexer
 import Data.List
 
 -- 
-data SLiteral = BLit Bool TokenInfo
-                | StrLit String TokenInfo
-                | NumLit Double TokenInfo
+data SLiteral = BoolLit Bool TokenInfo
+                | StringLit String TokenInfo
+                | NumericLit Double TokenInfo
 
 instance Show SLiteral where
-    show (BLit b _) = show b
-    show (StrLit b _) = show b
-    show (NumLit b _) = show b
+    show (BoolLit b _) = show b
+    show (StringLit b _) = show b
+    show (NumericLit b _) = show b
 
 
 instance Eq SLiteral where
-    (BLit b _) == (BLit a _) = b == a
-    (BLit _ _) == _ = False
-    (StrLit b _) == (StrLit a _) = b == a
-    (StrLit _ _) == _ = False
-    (NumLit b _) == (NumLit a _) = b == a
-    (NumLit _ _) == _ = False
+    (BoolLit b _) == (BoolLit a _) = b == a
+    (BoolLit _ _) == _ = False
+    (StringLit b _) == (StringLit a _) = b == a
+    (StringLit _ _) == _ = False
+    (NumericLit b _) == (NumericLit a _) = b == a
+    (NumericLit _ _) == _ = False
 
 type Annotation = String
 type Symbol = String
@@ -37,13 +37,13 @@ debugSTree :: STree -> String
 
 debugSTree s = 
     case s of
-        (SLit (BLit b info)) -> 
+        (SLit (BoolLit b info)) -> 
             let msg = "{ \"slit-bool\": " ++ show b ++ ", \"info\": "
             in dmsg msg info
-        (SLit (StrLit b info)) ->
+        (SLit (StringLit b info)) ->
             let msg = "{ \"slit-string\": " ++ show b ++ ", \"info\": "
             in dmsg msg info
-        (SLit (NumLit b info)) -> 
+        (SLit (NumericLit b info)) -> 
             let msg = "{ \"slit-number\": " ++ show b ++ ", \"info\": "
             in dmsg msg info
         (SName b info) ->
@@ -67,15 +67,15 @@ isSLit :: STree -> Bool
 isSLit (SLit _) = True
 isSLit _ = False
 isNumSLit :: STree -> Bool
-isNumSLit (SLit (NumLit _ _)) = True
+isNumSLit (SLit (NumericLit _ _)) = True
 isNumSLit _ = False 
 
 isBoolSLit :: STree -> Bool
-isBoolSLit (SLit (BLit _ _)) = True
+isBoolSLit (SLit (BoolLit _ _)) = True
 isBoolSLit _ = False 
 
 isStrSLit :: STree -> Bool
-isStrSLit (SLit (StrLit _ _)) = True
+isStrSLit (SLit (StringLit _ _)) = True
 isStrSLit _ = False
 
 isSName :: STree -> Bool
@@ -89,9 +89,9 @@ isSList _ = False
 getSTreeTokInfo :: STree -> TokenInfo
 getSTreeTokInfo (SName _ b) = b
 getSTreeTokInfo (SVar _ _ b) = b
-getSTreeTokInfo (SLit (BLit _ b)) = b
-getSTreeTokInfo (SLit (StrLit _ b)) = b
-getSTreeTokInfo (SLit (NumLit _ b)) = b
+getSTreeTokInfo (SLit (BoolLit _ b)) = b
+getSTreeTokInfo (SLit (StringLit _ b)) = b
+getSTreeTokInfo (SLit (NumericLit _ b)) = b
 getSTreeTokInfo (SList []) = TokInfo (-1) (-1) "" ""
 getSTreeTokInfo (SList (a:_)) = getSTreeTokInfo a
 
@@ -124,9 +124,9 @@ parseOne (TokSep _ (TokInfo line col _ _): _) =
 -- variable or operator name
 parseOne (TokSymbol s a: tokens) = ([SName s a], tokens)
 parseOne (TokOp s a: tokens) = ([SName [s] a], tokens)
-parseOne (TokBool b a: tokens) = ([SLit $ BLit b a], tokens)
-parseOne (TokNumber b a: tokens) = ([SLit $ NumLit b a], tokens)
-parseOne (TokString b a: tokens) = ([SLit $ StrLit b a], tokens)
+parseOne (TokBool b a: tokens) = ([SLit $ BoolLit b a], tokens)
+parseOne (TokNumber b a: tokens) = ([SLit $ NumericLit b a], tokens)
+parseOne (TokString b a: tokens) = ([SLit $ StringLit b a], tokens)
 parseOne (TokRPar _: tokens) = ([], tokens)
 parseOne (TokEnd: tokens) = ([], tokens)
 
