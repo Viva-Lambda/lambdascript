@@ -5,23 +5,23 @@ import Lexer
 import Data.List
 
 -- 
-data SLiteral = BooleanLiteral Bool TokenInfo
-                | StringLiteral String TokenInfo
-                | NumericLiteral Double TokenInfo
+data SLiteral = BLit Bool TokenInfo
+                | StrLit String TokenInfo
+                | NumLit Double TokenInfo
 
 instance Show SLiteral where
-    show (BooleanLiteral b _) = show b
-    show (StringLiteral b _) = show b
-    show (NumericLiteral b _) = show b
+    show (BLit b _) = show b
+    show (StrLit b _) = show b
+    show (NumLit b _) = show b
 
 
 instance Eq SLiteral where
-    (BooleanLiteral b _) == (BooleanLiteral a _) = b == a
-    (BooleanLiteral _ _) == _ = False
-    (StringLiteral b _) == (StringLiteral a _) = b == a
-    (StringLiteral _ _) == _ = False
-    (NumericLiteral b _) == (NumericLiteral a _) = b == a
-    (NumericLiteral _ _) == _ = False
+    (BLit b _) == (BLit a _) = b == a
+    (BLit _ _) == _ = False
+    (StrLit b _) == (StrLit a _) = b == a
+    (StrLit _ _) == _ = False
+    (NumLit b _) == (NumLit a _) = b == a
+    (NumLit _ _) == _ = False
 
 type Annotation = String
 type Symbol = String
@@ -37,13 +37,13 @@ debugSTree :: STree -> String
 
 debugSTree s = 
     case s of
-        (SLit (BooleanLiteral b info)) -> 
+        (SLit (BLit b info)) -> 
             let msg = "{ \"slit-bool\": " ++ show b ++ ", \"info\": "
             in dmsg msg info
-        (SLit (StringLiteral b info)) ->
+        (SLit (StrLit b info)) ->
             let msg = "{ \"slit-string\": " ++ show b ++ ", \"info\": "
             in dmsg msg info
-        (SLit (NumericLiteral b info)) -> 
+        (SLit (NumLit b info)) -> 
             let msg = "{ \"slit-number\": " ++ show b ++ ", \"info\": "
             in dmsg msg info
         (SName b info) ->
@@ -63,22 +63,19 @@ debugSTree s =
     where dmsg m i = m ++ debugTokenInfo i ++ " }"
 
 
-
-
-
 isSLit :: STree -> Bool
 isSLit (SLit _) = True
 isSLit _ = False
 isNumSLit :: STree -> Bool
-isNumSLit (SLit (NumericLiteral _ _)) = True
+isNumSLit (SLit (NumLit _ _)) = True
 isNumSLit _ = False 
 
 isBoolSLit :: STree -> Bool
-isBoolSLit (SLit (BooleanLiteral _ _)) = True
+isBoolSLit (SLit (BLit _ _)) = True
 isBoolSLit _ = False 
 
 isStrSLit :: STree -> Bool
-isStrSLit (SLit (StringLiteral _ _)) = True
+isStrSLit (SLit (StrLit _ _)) = True
 isStrSLit _ = False
 
 isSName :: STree -> Bool
@@ -92,9 +89,9 @@ isSList _ = False
 getSTreeTokInfo :: STree -> TokenInfo
 getSTreeTokInfo (SName _ b) = b
 getSTreeTokInfo (SVar _ _ b) = b
-getSTreeTokInfo (SLit (BooleanLiteral _ b)) = b
-getSTreeTokInfo (SLit (StringLiteral _ b)) = b
-getSTreeTokInfo (SLit (NumericLiteral _ b)) = b
+getSTreeTokInfo (SLit (BLit _ b)) = b
+getSTreeTokInfo (SLit (StrLit _ b)) = b
+getSTreeTokInfo (SLit (NumLit _ b)) = b
 getSTreeTokInfo (SList []) = TokInfo (-1) (-1) "" ""
 getSTreeTokInfo (SList (a:_)) = getSTreeTokInfo a
 
@@ -109,6 +106,7 @@ parseOne (TokLPar _: toks) =
   let (st, ts) = parseMany [] toks
   in ([SList st], ts)
 
+-- identifier
 parseOne (TokSymbol a ainfo : TokSep _ _: TokSymbol c _ :tokens) = 
     ([SVar c a ainfo], tokens)
 
@@ -123,12 +121,12 @@ parseOne (TokSep _ (TokInfo line col _ _): _) =
         msg3 = msg2 ++ " at line " ++ show line ++ " column " ++ show col
     in error msg3
 
-
+-- variable or operator name
 parseOne (TokSymbol s a: tokens) = ([SName s a], tokens)
 parseOne (TokOp s a: tokens) = ([SName [s] a], tokens)
-parseOne (TokBool b a: tokens) = ([SLit $ BooleanLiteral b a], tokens)
-parseOne (TokNumber b a: tokens) = ([SLit $ NumericLiteral b a], tokens)
-parseOne (TokString b a: tokens) = ([SLit $ StringLiteral b a], tokens)
+parseOne (TokBool b a: tokens) = ([SLit $ BLit b a], tokens)
+parseOne (TokNumber b a: tokens) = ([SLit $ NumLit b a], tokens)
+parseOne (TokString b a: tokens) = ([SLit $ StrLit b a], tokens)
 parseOne (TokRPar _: tokens) = ([], tokens)
 parseOne (TokEnd: tokens) = ([], tokens)
 
@@ -152,27 +150,3 @@ debugUnknownSymbol str context line col =
     let msg = "Unknown symbol " ++ str ++ " at line " ++ show line
         msg2 = msg ++ " column " ++ show col ++ " during " ++ context
     in msg2
-
-
--- check if given token contains special keywords
-checkKeywords :: Token -> Bool
-checkKeywords (TokSymbol str _)
-  -- condition
-  | str == "if" = True
-  | str == "eger" = True
-  -- assignment/get
-  | str == "def" = True
-  | str == "tanim" = True
-  | str == "get" = True
-  | str == "al" = True
-  -- function definition
-  | str == "fn" = True
-  | str == "eder" = True
-  | str == "quote" = True
-  | str == "sabit" = True
-  -- while definition
-  | str == "while" = True
-  | str == "surece" = True
-  | otherwise = False
-
-checkKeywords _ = False
