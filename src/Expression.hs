@@ -35,7 +35,6 @@ operator := opchar | <varname>
 opchar := + | - | * | / | % | < | > | & | \| | !
 operand := (<expression>*)
 
-
 assignment := ( def/tanim <identifier> <expression> )
 
 conditional := (eger/if <test> <consequent> <alternate>)
@@ -295,8 +294,6 @@ getExprInfo (GExpr (GetLit i) ) = getLitTokenInfo i
 getExprInfo (CallExpr _ i) = i
 getExprInfo (StmtExpr _ i) = i 
 getExprInfo EndExpr = mkTokInfo (-1) (-1) "end of expression" ""
-
-
 
 
 data Conditional = Cond {ctest :: ConditionTest,

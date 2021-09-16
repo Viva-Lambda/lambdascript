@@ -86,95 +86,98 @@ ifExprCheck = exprCheck
 test1 :: Test
 test1 = TestCase ( assertEqual 
     ("for if expression: " ++ ifString)
-    True (ifExprCheck ifString (LiteralExpr  (StrLit "\"Merhaba\"" (mkTokInfo 0 0 "" "")))) )
+    True (ifExprCheck ifString (GExpr ( GetLit  (StrLit "\"Merhaba\""
+    (mkTokInfo 0 0 "" "")))) ))
 
 test2 :: Test
 test2 = TestCase ( assertEqual 
     ("for if expression: " ++ ifString2)
-    True (ifExprCheck ifString2 (LiteralExpr  (StrLit "\"Dunya\"" (mkTokInfo 0 0 "" "")))) )
+    True (ifExprCheck ifString2 (GExpr (GetLit  (StrLit "\"Dunya\"" (mkTokInfo
+    0 0 "" "")))) ))
 
 test3 :: Test
 test3 = TestCase ( 
     assertEqual
     ("for if expression: " ++ ifBoolExpr1)
-    True (ifExprCheck ifBoolExpr1 (LiteralExpr  (BLit False (mkTokInfo 0 0 "" ""))))
-    )
+    True (ifExprCheck ifBoolExpr1 (GExpr (GetLit  (BLit False (mkTokInfo 0 0 "" ""))))
+    ))
 
 test4 :: Test
 test4 = TestCase ( 
     assertEqual 
     ("for if expression: " ++ ifBoolExpr2)
-    True (ifExprCheck ifBoolExpr2 (LiteralExpr  (BLit True (mkTokInfo 0 0 "" ""))))
-    )
+    True (ifExprCheck ifBoolExpr2 (GExpr (GetLit  (BLit True (mkTokInfo 0 0 "" ""))))
+    ))
  
 test5 :: Test
 test5 = TestCase ( 
     assertEqual 
     ("for if expression: " ++ ifNumExpr1)
-    True (ifExprCheck ifNumExpr1 (LiteralExpr  (NumLit 1.05 (mkTokInfo 0 0 "" "")) ))
-    )
+    True (ifExprCheck ifNumExpr1 (GExpr (GetLit  (NumLit 1.05 (mkTokInfo 0 0 "" "")) ))
+    ))
 
 test6 :: Test
 test6 = TestCase ( 
     assertEqual 
     ("for if expression: " ++ ifNumExpr2)
-    True (ifExprCheck ifNumExpr2 (LiteralExpr  (NumLit 0.5 (mkTokInfo 0 0 "" "")) ))
-    )
+    True (ifExprCheck ifNumExpr2 (GExpr (GetLit  (NumLit 0.5 (mkTokInfo 0 0 "" "")) ))
+    ))
 
 test7 :: Test
 test7 = TestCase (
     assertEqual 
     ("for if expression: " ++ ifUnaryExpr1)
-    True (ifExprCheck ifUnaryExpr1 (LiteralExpr  (BLit True (mkTokInfo 0 0 "" "")) ))
-    )
+    True (ifExprCheck ifUnaryExpr1 (GExpr (GetLit  (BLit True (mkTokInfo 0 0 "" "")) ))
+    ))
 
 test8 :: Test
 test8 = TestCase (
     assertEqual 
     ("for if expression: " ++ ifUnaryExpr2)
-    True (ifExprCheck ifUnaryExpr2 (LiteralExpr  (BLit False (mkTokInfo 0 0 "" "")) ))
-    )
+    True (ifExprCheck ifUnaryExpr2 (GExpr (GetLit  (BLit False (mkTokInfo 0 0 "" "")) ))
+    ))
 
 test9 :: Test
 test9 = TestCase (
     assertEqual 
     ("for if expression: " ++ ifUnaryExpr3)
-    True (ifExprCheck ifUnaryExpr3 (LiteralExpr  (NumLit (-1.0) (mkTokInfo 0 0 "" ""))))
-    )
+    True (ifExprCheck ifUnaryExpr3 (GExpr (GetLit  (NumLit (-1.0) (mkTokInfo 0 0 "" ""))))
+    ))
 
 test10 :: Test
 test10 = TestCase (
     assertEqual 
     ("for if expression: " ++ ifUnaryExpr4)
-    True (ifExprCheck ifUnaryExpr4 (LiteralExpr  (NumLit (-3.0) (mkTokInfo 0 0 "" ""))))
-    )
+    True (ifExprCheck ifUnaryExpr4 (GExpr (GetLit  (NumLit (-3.0) (mkTokInfo 0 0 "" ""))))
+    ))
 
 test11 :: Test
 test11 = TestCase (
     assertEqual 
     ("for if expression: " ++ ifBinaryExpr1) 
-    True (ifExprCheck ifBinaryExpr1 (LiteralExpr  (NumLit (-4.0) (mkTokInfo 0 0 "" ""))))
-    )
+    True (ifExprCheck ifBinaryExpr1 (GExpr (GetLit  (NumLit (-4.0) (mkTokInfo 0 0 "" ""))))
+    ))
 
 test12 :: Test
 test12 = TestCase (
     assertEqual 
     ("for if expression: " ++ ifBinaryExpr2)
-    True (ifExprCheck ifBinaryExpr2 (LiteralExpr  (NumLit (9.0) (mkTokInfo 0 0 "" ""))))
-    )
+    True (ifExprCheck ifBinaryExpr2 (GExpr (GetLit  (NumLit (9.0) (mkTokInfo 0 0 "" ""))))
+    ))
 
 test13 :: Test
 test13 = TestCase (
     assertEqual 
     ("for if expression: " ++ ifIfExpr1)
-    True (ifExprCheck ifIfExpr1 (LiteralExpr  (NumLit (9.0) (mkTokInfo 0 0 "" ""))))
-    )
+    True (ifExprCheck ifIfExpr1 (GExpr (GetLit  (NumLit (9.0) (mkTokInfo 0 0 "" ""))))
+    ))
 
 test14 :: Test
 test14 = TestCase (
     assertEqual 
     ("for if expression: " ++ ifIfExpr2)
-    True (ifExprCheck ifIfExpr2 (LiteralExpr  (NumLit (2.0) (mkTokInfo 0 0 "" ""))))
+    True (ifExprCheck ifIfExpr2 (GExpr (GetLit  (NumLit (2.0) (mkTokInfo 0 0
+    "" "")))))
     )
 
 

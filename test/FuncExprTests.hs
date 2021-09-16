@@ -19,11 +19,30 @@ fnstr = "(seq (fn threearg: float \n\
 test1 :: Test
 test1 = TestCase ( 
         assertEqual ("for seq expression " ++ fnstr) True 
-        (exprCheck fnstr (LiteralExpr (NumLit 6.0 (mkTokInfo 0 0 "" ""))))
+        (exprCheck fnstr (GExpr (GetLit (NumLit 6.0 (mkTokInfo 0 0 "" "")))))
+    )
+
+
+fnstr2 :: String
+fnstr2 = "(seq (fn two: float \n\
+                \ (var1: float var2: float)\n\ 
+                \ (seq (def var3: float (* var1 var1)) \
+                \      (def var4: float (+ var3 var2)) \
+                \      var4 \
+                \ )\
+            \ )\
+            \ ( do two (2.0 1.0) )\
+           \ )"
+
+test2 :: Test
+test2 = TestCase ( 
+        assertEqual ("for fn expression " ++ fnstr2) True 
+        (exprCheck fnstr2 (GExpr (GetLit (NumLit 5.0 (mkTokInfo 0 0 "" "")))))
     )
 
 
 fntests :: Test
 fntests = TestList [
-    TestLabel "fn test 1" test1
+    TestLabel "fn test 1" test1,
+    TestLabel "fn test 2" test2
     ]

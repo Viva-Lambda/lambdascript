@@ -69,11 +69,11 @@ addIdsExpZipEval (ie:ies) = do
 
 -- check for expression types
 isNumericExpr :: Expr -> Bool
-isNumericExpr (LiteralExpr (NumLit _ _)) = True
+isNumericExpr (GExpr (GetLit (NumLit _ _))) = True
 isNumericExpr _ = False
 
 isBoolExpr :: Expr -> Bool
-isBoolExpr (LiteralExpr (BLit _ _) ) = True
+isBoolExpr (GExpr (GetLit (BLit _ _)) ) = True
 isBoolExpr _ = False
 
 -- default functions
@@ -93,9 +93,9 @@ foldlSequence SeqExpr {parent = a, child = b} = do
 evaluate :: Expr -> Evaluator Expr
 
 -- evaluate literals
-evaluate (LiteralExpr (BLit a i) ) = return $ LiteralExpr (BLit a i)
-evaluate (LiteralExpr (NumLit a i) ) = return $ LiteralExpr (NumLit a i)
-evaluate (LiteralExpr (StrLit a i) ) = return $ LiteralExpr (StrLit a i)
+evaluate (GExpr (GetLit (BLit a i) )) = return $ GExpr $ GetLit (BLit a i)
+evaluate (GExpr (GetLit (NumLit a i) )) = return $ GExpr $ GetLit (NumLit a i)
+evaluate (GExpr (GetLit (StrLit a i) )) = return $ GExpr $ GetLit (StrLit a i)
 
 {-
 let p1 = "true"
@@ -109,6 +109,7 @@ evaluate (StmtExpr (AssignStmt a) _) =
     let (Assigner (IdExpr (VName aid _) _ _) aexp) = a
     in do
         expr <- evaluate aexp
+        -- error $ "vname " ++ aid ++ " expr " ++ show aexp
         addSymbol aid expr
         return expr
 
@@ -134,7 +135,7 @@ evaluate (StmtExpr (CondStmt a) line) =
             expr <- lookUp ide info
             condVal <- evaluate expr
             case condVal of
-                (LiteralExpr lit) -> eval lit conseq alter
+                (GExpr (GetLit lit)) -> eval lit conseq alter
                 _ -> let msg = "Variable must evaluate to a literal value"
                          msg2 = msg ++ " at line " ++ debugTokenInfo info
                      in error msg2
@@ -144,7 +145,7 @@ evaluate (StmtExpr (CondStmt a) line) =
                 result <- evaluate (CallExpr p tinfo)
                 case result of
                     --
-                    (LiteralExpr lit) -> eval lit conseq alter
+                    (GExpr (GetLit lit)) -> eval lit conseq alter
                     _ -> let msg = "Procedure must evaluate to a literal value"
                              msg2 = msg ++ " at line " ++ debugTokenInfo tinfo
                          in error msg2
@@ -170,7 +171,7 @@ evaluate (StmtExpr (LoopStmt loopE) line) =
                 in do
                     expr <- lookUp ids info
                     case expr of
-                        (LiteralExpr lit ) -> eval loopE lit
+                        (GExpr (GetLit lit )) -> eval loopE lit
                         _ -> let msg = debugVarName v
                                  msg2 = msg ++ " must evaluate to a literal value"
                              in error msg2
@@ -179,7 +180,7 @@ evaluate (StmtExpr (LoopStmt loopE) line) =
                 result <- evaluate (CallExpr p (procCallInfo p))
                 case result of
                     --
-                    (LiteralExpr lit) -> eval loopE lit
+                    (GExpr (GetLit lit)) -> eval loopE lit
                     _ -> let msg = debugProcCall p
                              msg2 = msg ++ " at line " ++ debugTokenInfo (procCallInfo p)
                              msg3 = msg2 ++ " must evaluate to a literal value"
@@ -250,9 +251,9 @@ evaluate (CallExpr procCall i) = -- (+ 1 2) - (set var 456)
                         -- return computed value
                         return rvalue
 
-          evalBin ch (LiteralExpr (NumLit f fln)) (LiteralExpr (NumLit s sln)) tinfo =
-            let first = LiteralExpr (NumLit f fln)
-                second = LiteralExpr (NumLit s sln)
+          evalBin ch (GExpr (GetLit (NumLit f fln))) (GExpr (GetLit (NumLit s sln))) tinfo =
+            let first = GExpr (GetLit (NumLit f fln))
+                second = GExpr (GetLit (NumLit s sln))
             in 
                 case ch of
                     "+" -> return $ add2Number first second
@@ -265,9 +266,9 @@ evaluate (CallExpr procCall i) = -- (+ 1 2) - (set var 456)
                     "=" -> return $ cmpBinExprFn (==) first second
                     "!" -> return $ cmpBinExprFn (/=) first second
                     _ -> evalNarg ch tinfo [first, second]
-          evalBin ch (LiteralExpr (BLit f fln)) (LiteralExpr (BLit s sln)) tinfo =
-            let first = LiteralExpr (BLit f fln)
-                second = LiteralExpr (BLit s sln)
+          evalBin ch (GExpr (GetLit (BLit f fln))) (GExpr (GetLit (BLit s sln))) tinfo =
+            let first = GExpr (GetLit (BLit f fln))
+                second = GExpr (GetLit (BLit s sln))
             in
                 case ch of
                     "&" -> return $ andBool first second
@@ -288,10 +289,10 @@ evaluate (CallExpr procCall i) = -- (+ 1 2) - (set var 456)
                 ">" -> error $ msgp ++ "numeric" ++ msge
                 "&" -> error $ msgp ++ "boolean" ++ msge
                 "|" -> error $ msgp ++ "boolean" ++ msge
-                "=" -> let lit = LiteralExpr (BLit (first == second) (getExprInfo first))
+                "=" -> let lit = GExpr $ GetLit (BLit (first == second) (getExprInfo first) )
                        in return lit
                        -- in error $ "equal came: " ++ debugExpr first
-                "!" -> return $ LiteralExpr (BLit (first /= second) (getExprInfo first))
+                "!" -> return $ GExpr $ GetLit (BLit (first /= second) (getExprInfo first))
                 _ -> evalNarg ch tinfo [first, second]
           evalUn op e tinfo =
                 let msgpref = "expression must be a "
@@ -299,13 +300,13 @@ evaluate (CallExpr procCall i) = -- (+ 1 2) - (set var 456)
                 in case op of
                     "-" -> let isNumeric = isNumericExpr e
                            in if isNumeric
-                              then let LiteralExpr (NumLit b j) = e
-                                   in return $ LiteralExpr (NumLit (-b) j) 
+                              then let GExpr (GetLit (NumLit b j)) = e
+                                   in return $ GExpr $ GetLit (NumLit (-b) j)
                               else error $ msgpref ++ "number" ++ msgend
                     "~" -> let isBool = isBoolExpr e
                            in if isBool
-                              then let LiteralExpr (BLit b j) = e
-                                   in return $ LiteralExpr (BLit (not b) j)
+                              then let GExpr (GetLit (BLit b j)) = e
+                                   in return $ GExpr (GetLit (BLit (not b) j))
                               else error $ msgpref ++ "boolean" ++ msgend
                     _ -> evalNarg op tinfo [e]
 
@@ -321,48 +322,67 @@ let p4 = "(+ 2.0 (- 1.8 0.2))"
 -}
 
 -- evaluate get expression
-evaluate (GetExpr (VName str j)) = lookUp str j 
+evaluate (GExpr (GetVName (VName str j))) = lookUp str j
 
 -- as per scheme specification
-evaluate EndExpr = return $ LiteralExpr (StrLit "" $ mkTokInfo (-1) (-1) "" "")
+evaluate EndExpr = return $ GExpr (GetLit (StrLit "" $ mkTokInfo (-1) (-1) "" ""))
 
 -- eval not matched
 evaluate a = error $ "the following expression is not matched: " ++ debugExpr a 
 
 -- value reference
 
+defaultKWords :: Keywords
+defaultKWords = DMap.fromList [
+                            ("do", ["do", "yap"]),
+                            ("seq", ["seq", "list"]),
+                            ("fn", ["fn", "edim"]),
+                            ("if", ["if", "eger"]),
+                            ("loop", ["loop", "dongu"]),
+                            ("then", ["then", "ise"]),
+                            ("else", ["else", "yoksa"]),
+                            ("def", ["def", "tanim"])
+                ]
+
 -- test functions
 exprCheck :: String -> Expr -> Bool
 exprCheck arg expected =
     let toks = tokenize arg 0 0
-        pexps = parseExpr toks
+        pexps = parseExpr (defaultKWords, emptyState, parseAll toks)
     in
         case pexps of
-            (Result res rem) -> 
+            (PResult (_, _, res)) ->
                 let act = runState $ evaluate res
                     (expr, _) = act (DMap.fromList [("k", EndExpr)])
                     expb = expr == expected
+
                 in if expb
                    then True
                    else let msg = "unexpected " ++ debugExpr expr
-                            msg2 = msg ++ "\n REMAINING: " ++ toString rem
-                        in error msg2
-            (Error e) -> error $ "Error: " ++ show e
+                        in error $ msg ++ " parsed: " ++ debugExpr res
+            (PError e) -> error $ "Error: " ++ show e
 
-runEval :: String -> Expr
-runEval toks =
+
+runEval2 :: String -> Keywords -> Expr
+runEval2 toks kws =
     let tp = tokenize toks 0 0
-        kws = DMap.fromList [("do", ["do", "yap"])]
-        pexps = parseExpr kws tp
+        stree = parseAll tp
+        pexps = parseExpr $ (kws, emptyState, stree)
     in
         case pexps of
-            (Result res rem) -> let act = runState $ evaluate res
-                                    (expr, _) = act (DMap.fromList [("f", EndExpr)])
+            (PResult (_, _, res)) -> let act = runState $ evaluate res
+                                         (expr, _) = act (DMap.fromList [("f", EndExpr)])
                                 in expr
-            (Error e) -> error $ "Error: " ++ show e
+            (PError e) -> error $ "Error: " ++ show e
 
+
+runEval :: String -> Expr
+runEval toks = runEval2 toks defaultKWords
+    
 
 peval :: String -> IO ()
 peval toks = print $ runEval toks
+peval2 :: String -> Keywords -> IO ()
+peval2 toks kws = print $ runEval2 toks kws
 -- (+ 1 2)
 -- (set var1 (+ 1 564))

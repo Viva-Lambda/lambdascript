@@ -7,7 +7,7 @@ import Lexer
 
 -- numeric expression function
 numBinExprFn :: (Double -> Double -> Double) -> Expr -> Expr -> Expr
-numBinExprFn fn (LiteralExpr (NumLit a i)) (GetExpr (GetLit (NumLit b j))) =
+numBinExprFn fn (GExpr (GetLit (NumLit a i))) (GExpr (GetLit (NumLit b j))) =
     let val = a `fn` b
         TokInfo {lineNumber = ta, colNumber = tc,
                  tokDescription = td, tokContext = tcon} = joinTokInfo i j
@@ -23,7 +23,7 @@ numBinExprFn _ a b =
     in error msg2
 
 cmpBinExprFn :: (Double -> Double -> Bool) -> Expr -> Expr -> Expr
-cmpBinExprFn fn (GExpr (GetExpr (NumLit a i))) (GExpr (GetExpr (NumLit b j))) = 
+cmpBinExprFn fn (GExpr (GetLit (NumLit a i))) (GExpr (GetLit (NumLit b j))) = 
     let val = a `fn` b
         TokInfo {lineNumber = ta, colNumber = tc,
                  tokDescription = td, tokContext = tcon} = joinTokInfo i j
@@ -50,7 +50,7 @@ multiply2Number :: Expr -> Expr -> Expr
 multiply2Number a b = numBinExprFn (*) a b
 
 divide2Number :: Expr -> Expr -> Expr
-divide2Number a (LiteralExpr (NumLit 0.0 i)) = 
+divide2Number a (GExpr (GetLit (NumLit 0.0 i))) = 
     error $ "zero division at line " ++ show i
 divide2Number a b = numBinExprFn (/) a b
 

@@ -22,7 +22,7 @@ test1 = TestCase (
         assertEqual ("for loop expression " ++ loopstr) True 
         (exprCheck 
             loopstr 
-            (LiteralExpr (NumLit 10.0 (mkTokInfo 0 0 "" "")))
+            (GExpr (GetLit (NumLit 10.0 (mkTokInfo 0 0 "" ""))))
         )
     )
 

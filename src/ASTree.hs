@@ -107,8 +107,8 @@ parseOne (TokLPar _: toks) =
   in ([SList st], ts)
 
 -- identifier
-parseOne (TokSymbol a ainfo : TokSep _ _: TokSymbol c _ :tokens) = 
-    ([SVar c a ainfo], tokens)
+parseOne (TokSymbol sym ainfo : TokSep _ _: TokSymbol anno _ :tokens) = 
+    ([SVar sym anno ainfo], tokens)
 
 parseOne (TokSep _ (TokInfo line col _ _): TokSymbol _ _ :_) = 
     let msg = "typename seperator must be preceded by a variable name"
