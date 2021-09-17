@@ -10,7 +10,7 @@ import qualified Data.Map as DMap
 
 fnstr :: String
 fnstr = "(seq (fn threearg: float \n\
-                \ (var1: float var2: float var3: float)\n\ 
+                \ (var1: float var2: float var3: float) \n\ 
                 \ (seq (do * ((do / (var1 var2)) var3)))\
             \ )\
             \ ( do threearg (4.0 2.0 3.0) )\
@@ -25,9 +25,9 @@ test1 = TestCase (
 
 fnstr2 :: String
 fnstr2 = "(seq (fn two: float \n\
-                \ (var1: float var2: float)\n\ 
-                \ (seq (def var3: float (* var1 var1)) \
-                \      (def var4: float (+ var3 var2)) \
+                \ (var1: float var2: float) \n\ 
+                \ (seq (def var3: float (do * (var1 var1))) \
+                \      (def var4: float (do + (var3 var2))) \
                 \      var4 \
                 \ )\
             \ )\

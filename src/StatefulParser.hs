@@ -8,6 +8,7 @@ import ASTree
 -- import Text.ParserCombinators.ReadP
 import Control.Applicative
 import qualified Data.Map as DMap
+import qualified Data.List as DList
 -- import Control.Monad.State.Lazy
 
 type ParsingState = DMap.Map String String
@@ -22,6 +23,7 @@ emptyKeywords = DMap.empty
 
 data ParseResult a = PError String 
                      | PResult (Keywords, ParsingState, a)
+                     deriving (Show)
 
 -- keyword
 iskey :: String -> String -> Keywords -> Bool
@@ -43,10 +45,15 @@ reduceResult (t:ts) =
         (Right a) -> a : reduceResult ts
         (Left _) -> []
 
+isParsed :: ParseResult a -> Bool
+isParsed (PResult _) = True
+isParsed (PError _) = False
+
 instance Functor ParseResult where
     -- fmap :: (a -> b) -> f a -> f b
     fmap f (PResult (k, p, a)) = PResult (k, p, f a)
     fmap _ (PError err) = PError err
+
 
 
 parseError :: STree -> String -> String
@@ -77,6 +84,8 @@ expression (k, p, (SList a)) =
     case statement (k, p, (SList a)) of
         (PResult (k2, p2, stmt)) -> PResult (k2, p2, StmtExpr $ stmt)
         (PError err) -> PError (err ++ ":in expression:")
+
+expression (_, _, v) = PError $ parseError v "expression"
 
 -- get expression
 getExpression :: Input -> ParseResult GetExpr
@@ -125,6 +134,7 @@ statement (k, p, SList (SName a b: c)) =
                                         (PError e) -> PError (e ++ lnb)
                                 else PError lnb
 
+statement (_, _, a) = PError $ parseError a "statement"
 
 conditional :: Input -> ParseResult Conditional
 conditional (k, p, (SList [SName _ b, SList c, SList (SName d e:f), SList (SName g h:m)])) =
@@ -145,6 +155,7 @@ conditional (k, p, (SList [SName _ b, SList c, SList (SName d e:f), SList (SName
                     (PError n) -> PError (n ++ lnb)
             (PError n) -> PError (n ++ lnb)
 
+conditional (_, _, a) = PError $ parseError a "conditional"
 -- condition test
 conditionTest :: Input -> ParseResult ConditionTest
 
@@ -162,7 +173,7 @@ conditionTest (k,p, SList (SName a b: c)) =
     in case procCall of
             (PResult (k2, p2, pc)) -> PResult (k2, p2, CTestProc pc)
             (PError e) -> PError e
-conditionTest (_,_,v) = PError "condition test not matched"
+conditionTest (_,_,_) = PError "condition test not matched"
 
 -- consequent / alternate
 cconseqAltern :: String -> String -> Input -> ParseResult Sequence
@@ -175,21 +186,25 @@ cconseqAltern key msg (k, p, SList [SName a b, SList (SName c d:e)]) =
                 (PError f) -> PError (f ++ lnb)
        else PError lnb
 
+cconseqAltern _ _ (_, _, _) = PError "can not match consequent or alternate"
+
 
 cconsequent :: Input -> ParseResult Sequence
 cconsequent (k, p, SList [SName a b, SList (SName c d:e)]) =
     let toks = (k, p, SList [SName a b, SList (SName c d:e)])
     in cconseqAltern "then" " :in consequent line " toks
 
+cconsequent (_, _, a) = PError $ parseError a "consequent"
 -- alternate
 calternate :: Input -> ParseResult Sequence
 calternate (k, p, SList [SName a b, SList (SName c d:e)]) =
     let toks = (k, p, SList [SName a b, SList (SName c d:e)])
     in cconseqAltern "else" " :in alternate line " toks
 
+calternate (_, _, a) = PError $ parseError a "alternate"
 -- loop
 loop :: Input -> ParseResult Loop
-loop (k, p, (SList [SName a b, SList c, SList (SName d e:f)])) =
+loop (k, p, (SList [SName _ b, SList c, SList (SName d e:f)])) =
     let testToks = SList c
         consToks = SList (SName d e:f)
         lnb = " :in loop at line " ++ show (lineNumber b) ++ " : "
@@ -199,12 +214,13 @@ loop (k, p, (SList [SName a b, SList c, SList (SName d e:f)])) =
                     (PResult (k3, p3, conseq)) ->
                         PResult (k3, p3, Looper {ltest = ct,
                                                  lconsequent = conseq})
-                    (PError e) -> PError (e ++ lnb)
-            (PError e) -> PError (e ++ lnb)
+                    (PError m) -> PError (m ++ lnb)
+            (PError m) -> PError (m ++ lnb)
 
+loop (_, _, a) = PError $ parseError a "loop"
 -- procedural definition
 procedureDefinition :: Input -> ParseResult ProcedureDefinition
-procedureDefinition (k, p, SList [SName a b, SVar c d e, SList f, SList (SName g h :j)]) =
+procedureDefinition (k, p, SList [SName _ b, SVar c d e, SList f, SList (SName g h :j)]) =
     let lnb = " :in procedural definition at line " ++ show ( lineNumber b ) ++ " : "
         idToks = SVar c d e
         argToks = SList f
@@ -222,16 +238,18 @@ procedureDefinition (k, p, SList [SName a b, SVar c d e, SList f, SList (SName g
                                         body = fb
                                         }
                                     )
-                            (PError e) -> PError (e ++ lnb ++ " body ")
-                    (PError e) -> PError (e ++ lnb ++ " arguments ")
-            (PError e) -> PError (e ++ lnb ++ " identifier ")
+                            (PError m) -> PError (m ++ lnb ++ " body ")
+                    (PError m) -> PError (m ++ lnb ++ " arguments ")
+            (PError m) -> PError (m ++ lnb ++ " identifier ")
 
+procedureDefinition (_, _, a) = PError $ parseError a "procedure definition"
 -- arguments
 parseIdentifier :: STree -> Identifier
 parseIdentifier (SVar a b c) = IdExpr (VName a c) (TName b c) (lineNumber c)
+parseIdentifier a = error $ parseError a "identifier"
 
 isId :: STree -> Bool
-isId (SVar a b c) = True
+isId (SVar _ _ _) = True
 isId _ = False
 
 isIds :: [STree] -> Bool
@@ -245,7 +263,7 @@ fargs (k, p, (SList a)) =
        then PResult (k, p, map parseIdentifier a)
        else PError "arguments are not made up of identifiers"
 
-fargs (k, p, v) = PError "function arguments must be provided as a list"
+fargs (_, _, _) = PError "function arguments must be provided as a list"
 
 -- function body
 fbody :: Input -> ParseResult Sequence
@@ -257,13 +275,14 @@ fbody i =
 -- assignment
 
 assignment :: Input -> ParseResult Assign
-assignment (k,p, (SList [SName a b, SVar c d e, f])) =
+assignment (k,p, (SList [SName _ b, SVar c d e, f])) =
     let ids = parseIdentifier (SVar c d e)
         lnb = " :in assignment line " ++ show (lineNumber b) ++ " : "
     in case expression (k, p, f) of
             (PResult (k2, p2, expr)) -> PResult (k2, p2, Assigner ids expr)
-            (PError e) -> PError (e ++ lnb)
+            (PError m) -> PError (m ++ lnb)
 
+assignment (_, _, a) = PError $ parseError a "assignment"
 -- identifier
 
 identifier :: Input -> ParseResult Identifier
@@ -272,20 +291,22 @@ identifier (_, _, v) = PError $ parseError v "identifier"
 
 -- procedure call
 procedureCall :: Input -> ParseResult ProcedureCall
-procedureCall (k, p, SList [SName a b, SName c d, SList e]) =
+procedureCall (k, p, SList [SName _ b, SName c d, SList e]) =
     let lnb = " :in procedure call line " ++ show (lineNumber b) ++ " : "
     in case operator (k,p,(SName c d)) of
             (PResult (k2, p2, oper)) -> 
                 case operand (k2, p2, (SList e)) of
                     (PResult (k3, p3, opera)) ->
                         PResult (k3, p3, Proc {op = oper, args = opera})
-                    (PError e) -> PError (e ++ lnb)
-            (PError e) -> PError (e ++ lnb)
+                    (PError m) -> PError (m ++ lnb)
+            (PError m) -> PError (m ++ lnb)
+
+procedureCall (_, _, a) = PError $ parseError a "procedure call"
 
 -- operator
 operator :: Input -> ParseResult Operator
 operator (k, p, SName c d) = PResult (k,p, OpName (VName c d))
-operator (_, _, v) = PError "does not match to operator"
+operator (_, _, _) = PError "does not match to operator"
 
 -- operand
 operand :: Input -> ParseResult Operand
@@ -296,13 +317,17 @@ isExpr i = case expression i of
                 (PError _) -> False
 
 isExprAll :: (Keywords, ParsingState, [STree]) -> Bool
+isExprAll (_, _, []) = True
 isExprAll (k, p, (e:es)) = (isExpr (k,p, e)) && (isExprAll (k, p, es))
 
 expressions :: Input -> [ParseResult Expr]
 
-expressions (k,p, SList []) = []
+expressions (_,_, SList []) = []
 expressions (k,p, SList (e:es)) = 
     (expression (k, p, e)) : (expressions (k, p, SList es))
+
+
+expressions (_,_, a) = error $ parseError a "multiple expressions"
 
 operand (k, p, SList a) =
     let allExpr = isExprAll (k, p, a)
@@ -310,11 +335,20 @@ operand (k, p, SList a) =
        then PResult (k,p, OprExpr $ reduceResult (expressions (k, p, SList a)))
        else PError "operand contains tokens that can not be parsed as expression"
 
+operand (_, _,  a) = PError $ parseError a "operand"
 -- sequence
 
 sequence :: Input -> ParseResult Sequence
-sequence (k, p, SList (SName c d:e)) =
+sequence (k, p, SList (SName a b:e)) =
     let allExpr = isExprAll (k, p, e)
+        exprInput = (k, p, SList e)
     in if allExpr
-       then PResult (k,p, fromExprToSeq $ reduceResult (expressions (k, p, SList e)))
-       else PError "sequence contains tokens that can not be parsed as expression"
+       then PResult (k,p, fromExprToSeq $ reduceResult (expressions exprInput))
+       else let (parsable, unParsable) = DList.partition isParsed (expressions exprInput)
+                msg = "sequence contains tokens that can not be parsed as expression"
+                msg2 =  msg ++ " " ++ ( show $ last unParsable) ++ " " ++ show b
+            in PError msg2
+            
+
+
+sequence (_, _, a) = PError $ parseError a "sequence"

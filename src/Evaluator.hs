@@ -105,7 +105,7 @@ let p4 = "\"dsklmkm\""
 -}
 
 -- evaluate assignment statement
-evaluate (StmtExpr (AssignStmt a) _) =
+evaluate (StmtExpr (AssignStmt a)) =
     let (Assigner (IdExpr (VName aid _) _ _) aexp) = a
     in do
         expr <- evaluate aexp
@@ -114,19 +114,19 @@ evaluate (StmtExpr (AssignStmt a) _) =
         return expr
 
 -- evaluate sequential statement
-evaluate (StmtExpr (SeqStmt a) _) = foldlSequence a
+evaluate (StmtExpr (SeqStmt a)) = foldlSequence a
 
 -- evaluate procedure definition statement
-evaluate (StmtExpr (ProcDefStmt a) line) =
+evaluate (StmtExpr (ProcDefStmt a)) =
     let DefineProc {procname = (IdExpr (VName pname _) _ _),
                     arguments = _,
                     body = _} = a
     in do 
-        addSymbol pname (StmtExpr (ProcDefStmt a) line)
+        addSymbol pname (StmtExpr (ProcDefStmt a))
         return EndExpr
 
 -- evaluate conditional statement
-evaluate (StmtExpr (CondStmt a) line) =
+evaluate (StmtExpr (CondStmt a) ) =
     let Cond {ctest = ct, 
               consequent = conseq,
               alternate = alter} = a
@@ -142,7 +142,7 @@ evaluate (StmtExpr (CondStmt a) line) =
         (CTestLit lit) -> eval lit conseq alter
         (CTestProc p) -> let tinfo = procCallInfo p
             in do
-                result <- evaluate (CallExpr p tinfo)
+                result <- evaluate (StmtExpr (CallStmt p tinfo))
                 case result of
                     --
                     (GExpr (GetLit lit)) -> eval lit conseq alter
@@ -160,7 +160,7 @@ evaluate (StmtExpr (CondStmt a) line) =
                                        else foldlSequence alt
 
 -- evaluate loop statement
-evaluate (StmtExpr (LoopStmt loopE) line) =
+evaluate (StmtExpr (LoopStmt loopE) ) =
     let Looper {ltest = ct,
                 lconsequent = _} = loopE
     in
@@ -177,7 +177,7 @@ evaluate (StmtExpr (LoopStmt loopE) line) =
                              in error msg2
             (CTestLit lit) -> eval loopE lit
             (CTestProc p) -> do
-                result <- evaluate (CallExpr p (procCallInfo p))
+                result <- evaluate (StmtExpr (CallStmt p (procCallInfo p)))
                 case result of
                     --
                     (GExpr (GetLit lit)) -> eval loopE lit
@@ -186,15 +186,15 @@ evaluate (StmtExpr (LoopStmt loopE) line) =
                              msg3 = msg2 ++ " must evaluate to a literal value"
                          in error msg3
         where eval a (BLit b tok) =
-                let loopExpr = StmtExpr (LoopStmt a) tok
+                let loopExpr = StmtExpr (LoopStmt a)
                     Looper {ltest = _, lconsequent = lseq} = a
                 in evalif b loopExpr lseq
               eval a (StrLit b tok) =
-                let loopExpr = StmtExpr (LoopStmt a) tok
+                let loopExpr = StmtExpr (LoopStmt a)
                     Looper {ltest = _, lconsequent = lseq} = a
                 in evalif (length b > 0) loopExpr lseq
               eval a (NumLit b tok) =
-                let loopExpr = StmtExpr (LoopStmt a) tok
+                let loopExpr = StmtExpr (LoopStmt a)
                     Looper {ltest = _, lconsequent = lseq} = a
                 in evalif (b > 0.0) loopExpr lseq
               evalif b lexp ss =
@@ -205,7 +205,7 @@ evaluate (StmtExpr (LoopStmt loopE) line) =
                 else evaluate EndExpr
 
 -- evaluate function call expression
-evaluate (CallExpr procCall i) = -- (+ 1 2) - (set var 456)
+evaluate (StmtExpr (CallStmt procCall i)) = -- (+ 1 2) - (set var 456)
     -- type checking can be done here
     -- IdExpr has another field (TName) registering types of variables
     let (Proc (OpName (VName op info)) pseq) = procCall
@@ -222,7 +222,7 @@ evaluate (CallExpr procCall i) = -- (+ 1 2) - (set var 456)
             (OprExpr exps) -> evalNarg op info exps
     where evalNarg funcName tinfo es = do
             procExpr <- lookUp funcName tinfo 
-            let (StmtExpr (ProcDefStmt a) _) = procExpr
+            let (StmtExpr (ProcDefStmt a)) = procExpr
                 DefineProc { procname = _,
                              arguments = pargs,
                              body = pbody } = a
@@ -348,7 +348,7 @@ defaultKWords = DMap.fromList [
 exprCheck :: String -> Expr -> Bool
 exprCheck arg expected =
     let toks = tokenize arg 0 0
-        pexps = parseExpr (defaultKWords, emptyState, parseAll toks)
+        pexps = expression (defaultKWords, emptyState, parseAll toks)
     in
         case pexps of
             (PResult (_, _, res)) ->
@@ -367,7 +367,7 @@ runEval2 :: String -> Keywords -> Expr
 runEval2 toks kws =
     let tp = tokenize toks 0 0
         stree = parseAll tp
-        pexps = parseExpr $ (kws, emptyState, stree)
+        pexps = expression $ (kws, emptyState, stree)
     in
         case pexps of
             (PResult (_, _, res)) -> let act = runState $ evaluate res

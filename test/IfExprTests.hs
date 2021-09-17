@@ -2,7 +2,6 @@ module IfExprTests(iftests) where
 
 import Lexer
 -- import Parser
-import CombinedParser
 import Evaluator
 import Expression
 import Test.HUnit
