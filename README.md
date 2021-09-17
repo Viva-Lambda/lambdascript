@@ -57,7 +57,7 @@ Here is the same fibonacci sequence function with different keywords:
 
 - Egyptian Hieroglyphs:
 
-```
+
 &semi;&#x20;&#x66;&#x69;&#x62;&#x6f;&#x6e;&#x61;&#x63;&#x63;&#x69;&#x20;&#x77;&#x69;&#x74;&#x68;&#x20;&#x65;&#x67;&#x79;&#x70;&#x74;&#x69;&#x61;&#x6e;&#x20;&#x68;&#x69;&#x65;&#x72;&#x6f;&#x67;&#x6c;&#x79;&#x70;&#x68;&#x73;
 &lpar;&#x13002;&#x13003;&#x20;&lpar;&#x1313f;&#x1314a;&#x20;&#x66;&#x69;&#x62;&#x6f;&#x6e;&colon;&#x20;&#x66;&#x6c;&#x6f;&#x61;&#x74;&#x20;&lpar;&#x6e;&colon;&#x20;&#x66;&#x6c;&#x6f;&#x61;&#x74;&rpar;
 &#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&lpar;&#x13002;&#x13003;&#x20;&lpar;&#x130a0;&#x130a8;&#x20;&#x6e;&#x31;&colon;&#x20;&#x66;&#x6c;&#x6f;&#x61;&#x74;&#x20;&#x30;&period;&#x30;&rpar;
@@ -83,7 +83,7 @@ Here is the same fibonacci sequence function with different keywords:
 &#x20;&#x20;&#x20;&#x20;&lpar;&#x130a0;&#x130a8;&#x20;&#x79;&colon;&#x20;&#x66;&#x6c;&#x6f;&#x61;&#x74;&#x20;&lpar;&#x13079;&#x20;&#x66;&#x69;&#x62;&#x6f;&#x6e;&#x20;&lpar;&#x78;&rpar;&rpar;&rpar;
 &#x20;&#x20;&#x20;&#x20;&#x79;
 &rpar;
-```
+
 
 - Turkish
 
