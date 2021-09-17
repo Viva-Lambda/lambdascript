@@ -346,7 +346,7 @@ sequence (k, p, SList (SName a b:e)) =
        then PResult (k,p, fromExprToSeq $ reduceResult (expressions exprInput))
        else let (parsable, unParsable) = DList.partition isParsed (expressions exprInput)
                 msg = "sequence contains tokens that can not be parsed as expression"
-                msg2 =  msg ++ " " ++ ( show $ last unParsable) ++ " " ++ show b
+                msg2 =  msg ++ " " ++ (show $ last unParsable) ++ " " ++ show b
             in PError msg2
             
 

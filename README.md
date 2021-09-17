@@ -49,11 +49,16 @@ Here is a function computing a fibonacci sequence
 ```
 Should output `34.0`.
 
+## Highlights
+
+The main feature of this language is its exchangeable keywords.
+
 ## Current Features
 
 - No return
 - Turing complete
 - You can define new functions with local variables.
+- Exchangeable keywords .
 - Very regular and simple syntax:
     - `seq` introduces a sequence of expressions where the computation flows
       from top to bottom
@@ -69,43 +74,52 @@ Should output `34.0`.
 Here is the grammar of lambdascript in a bnf-ish form
 
 ```
-expression := <literal> | <identifier> | <procedure call>
+expression := <get> | <statement>
 
 statement := <conditional>
             | <assignment>
             | <procedure definition> 
             | <loop>
+            | <procedure call>
             | <sequence>
 
+
+-- expressions
+get := <varname> | <literal>
+
+-- literals
 literal := <boolean> | <number> | <string>
 
-number := <digit>+.<digit>+
+number := <digit>+ | <digit>+.<digit>+
 boolean := true | false
 string := "...any number of char"
 
-identifier := <letter>+ <digit>*
+identifier := <varname> <typename>
+varname := <letter>+ <digit>*
 letter := a | b | c | d | e | f | ... | A | B | ... | Z
 digit := 0 | ... | 9
+typename := : <varname>
 
-procedural call := (do <operator> <operand>)
-operator := <identifier> | opchar
-opchar := + | - | * | / | < | > | & | \| | !
+procedural call := (do/yap <operator> <operand>)
+operator := opchar | <varname>
+opchar := + | - | * | / | % | < | > | & | \| | !
 operand := (<expression>*)
 
-assignment := (def <identifier> <expression>)
+assignment := ( def/tanim <identifier> <expression> )
 
-conditional := (if <test> <consequent> <alternate>)
-test := (<literal>) | <procedural call> | (<identifier>)
-consequent := (then <sequence>)
-alternate := (else <sequence>)
+conditional := (eger/if <test> <consequent> <alternate>)
+test := (<literal>) | <procedural call> | (<varname>)
+consequent := (then/ise <sequence>)
+alternate := (else/yoksa <sequence>)
 
-loop := (loop <test> <consequent>)
+loop := (loop/dongu <test> <consequent>)
+-- (loop/dongu (do/yap < (1.6 6.0)) (then/ise fdsak,m))
 
-procedure definition := (fn <identifier> <arguments> <body>)
+procedure definition := (fn/edim <identifier> <arguments> <body>)
 arguments := (<identifier>*)
 body := <sequence>
 
-sequence := ( seq <expression>+ )
+sequence := ( seq/liste <expression>+ )
 
 ```
 

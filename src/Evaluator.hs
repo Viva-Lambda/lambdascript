@@ -341,13 +341,18 @@ defaultKWords = DMap.fromList [
                             ("loop", ["loop", "dongu"]),
                             ("then", ["then", "ise"]),
                             ("else", ["else", "yoksa"]),
-                            ("def", ["def", "tanim"])
+                            ("def", ["def", "tanim"]),
+                            ("(", ["("]),
+                            (")", [")"])
                 ]
 
 -- test functions
 exprCheck :: String -> Expr -> Bool
 exprCheck arg expected =
-    let toks = tokenize arg 0 0
+    let kws = defaultKWords
+        lefts = kws DMap.! "("
+        rights = kws DMap.! ")"
+        toks = tokenize (lefts, rights) arg 0 0
         pexps = expression (defaultKWords, emptyState, parseAll toks)
     in
         case pexps of
@@ -365,7 +370,9 @@ exprCheck arg expected =
 
 runEval2 :: String -> Keywords -> Expr
 runEval2 toks kws =
-    let tp = tokenize toks 0 0
+    let lefts = kws DMap.! "("
+        rights = kws DMap.! ")"
+        tp = tokenize (lefts, rights) toks 0 0
         stree = parseAll tp
         pexps = expression $ (kws, emptyState, stree)
     in
