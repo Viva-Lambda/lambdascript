@@ -38,25 +38,25 @@ debugSTree :: STree -> String
 debugSTree s = 
     case s of
         (SLit (BoolLit b info)) -> 
-            let msg = "{ \"slit-bool\": " ++ show b ++ ", \"info\": "
+            let msg = "{ \"slit-bool\":\n " ++ show b ++ ", \"info\": "
             in dmsg msg info
         (SLit (StringLit b info)) ->
-            let msg = "{ \"slit-string\": " ++ show b ++ ", \"info\": "
+            let msg = "{ \"slit-string\":\n " ++ show b ++ ", \"info\": "
             in dmsg msg info
         (SLit (NumericLit b info)) -> 
-            let msg = "{ \"slit-number\": " ++ show b ++ ", \"info\": "
+            let msg = "{ \"slit-number\":\n " ++ show b ++ ", \"info\": "
             in dmsg msg info
         (SName b info) ->
-            let msg = "{ \"slit-symbol\": \"" ++ show b ++ "\", \"info\": "
+            let msg = "{ \"slit-symbol\":\n \"" ++ show b ++ "\", \"info\": "
             in dmsg msg info
         (SVar a b info) ->
-            let msg = "{ \"slit-variable\": " 
+            let msg = "{ \"slit-variable\":\n " 
                 msg2 = "{" ++ "\"name\": \"" ++ show a ++ "\","
                 msg3 =  "\"annotation\": \"" ++ show b ++ "\"}"
                 msg4 = msg ++ msg2 ++ msg3 ++ ", \"info\": "
             in dmsg msg4 info
         (SList a) ->
-            let msg = "{ \"slist\": [ "
+            let msg = "{ \"slist\": [\n "
                 msg2 = intercalate ", " $ map debugSTree a
                 msg3 = " ]}"
             in msg ++ msg2 ++ msg3

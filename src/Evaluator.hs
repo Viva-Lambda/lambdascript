@@ -360,7 +360,7 @@ exprCheck arg expected =
                    then True
                    else let msg = "unexpected " ++ debugExpr expr
                         in error $ msg ++ " parsed: " ++ debugExpr res
-            (PError e) -> error $ "Error: " ++ show e
+            (PError e) -> error $ "Error: " ++ e
 
 
 runEval2 :: String -> Keywords -> Expr
