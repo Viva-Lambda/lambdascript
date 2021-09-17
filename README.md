@@ -280,6 +280,11 @@ Basically if you want to use extended keywords feature you need to provide a
 ```
 ./lambdascript.out keywords.lambda.txt fibonacci-egy.lambda stdout
 ```
+An example has been provided in `bin` folder. The only restriction is that
+each keyword must be composed of alphanumeric characters as defined by utf-8.
+Each keyword must be unique in `keywords.lambda.txt` file. You can mix up
+languages if you wish, so `loop déf alors dann عملکرد` would be a valid choice
+of keywords if you would like to write your code in that way.
 
 ## Current Features
 
