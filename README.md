@@ -57,7 +57,6 @@ Here is the same fibonacci sequence function with different keywords:
 
 - Egyptian Hieroglyphs:
 
-```
 ; fibonacci with egyptian hieroglyphs
 (𓀂𓀃 (𓄿𓅊 fibon: float (n: float)
          (𓀂𓀃 (𓂠𓂨 n1: float 0.0)
@@ -83,7 +82,6 @@ Here is the same fibonacci sequence function with different keywords:
     (𓂠𓂨 y: float (𓁹 fibon (x)))
     y
 )
-```
 
 - Turkish
 
