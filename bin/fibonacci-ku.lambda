@@ -1,0 +1,26 @@
+; fibonacci kur
+(listeya (kari fibon: float (n: float)
+         (listeya (binavkirin n1: float 0.0)
+              (binavkirin n2: float 1.0)
+              (binavkirin i: float 0.0)
+              (eger (webike < (n 0.0) )
+                  (paşan (listeya n1))
+                  (wekidi (listeya (çerxeke (webike < (i n))
+                                   (paşan (listeya (binavkirin sum: float
+                                   (webike + (n1 n2)))
+                                              (binavkirin n1: float n2)
+                                              (binavkirin n2: float sum)
+                                              (binavkirin i: float (webike + (i 1.0)))
+                                         )
+                                   )
+                             )
+                             n1
+                        )
+                  )
+              )
+        )
+     )
+    (binavkirin x: float 9.0)
+    (binavkirin y: float (webike fibon (x)))
+    y
+)

@@ -1,8 +1,10 @@
-seq liste lîsteya قائمة tableau لیست List
-do yap wê-bike افعل faire انجام-دهید tun
-if eğer eger لو si اگر wenn
-def tanım binavkirin حدد déf مشخص-کردن beschreib
-loop dongu çerxeke حلقه-زدن boucle حلقه-زدن Schleife
-fn edim karî وظيفة fonction عملکرد Prozedur
-then ise paşan ثم alors سپس dann
-else yoksa wekîdi آخر sinon دیگری sonst
+seq liste listeya قائمة tableau لیست List 𓀂𓀃
+do yap webike افعل faire انجامدهید tun 𓁹
+if eğer eger لو si اگر wenn 𓂘𓂛
+def tanım binavkirin حدد déf مشخصکردن beschreib 𓂠𓂨
+loop dongu çerxeke حلقهزدن boucle حلقهزدن Schleife 𓄋𓄣
+fn edim kari وظيفة fonction عملکرد Prozedur 𓄿𓅊
+then ise paşan ثم alors سپس dann 𓆋𓆚
+else yoksa wekidi آخر sinon دیگری sonst 𓁕𓁖𓁗
+( [ { «
+) ] } »
