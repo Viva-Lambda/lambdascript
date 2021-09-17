@@ -308,10 +308,8 @@ statement := <conditional>
             | <sequence>
 
 
--- expressions
 get := <varname> | <literal>
 
--- literals
 literal := <boolean> | <number> | <string>
 
 number := <digit>+ | <digit>+.<digit>+
@@ -337,7 +335,6 @@ consequent := (then/ise <sequence>)
 alternate := (else/yoksa <sequence>)
 
 loop := (loop/dongu <test> <consequent>)
--- (loop/dongu (do/yap < (1.6 6.0)) (then/ise fdsak,m))
 
 procedure definition := (fn/edim <identifier> <arguments> <body>)
 arguments := (<identifier>*)
