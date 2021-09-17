@@ -85,6 +85,11 @@ Here is the same fibonacci sequence function with different keywords:
 )
 ```
 
+If you have code2003 font installed in your system, you should see the
+following image:
+
+![hiero-fibonacci](./images/fibonacci-egypt.png)
+
 - Turkish
 
 ```
