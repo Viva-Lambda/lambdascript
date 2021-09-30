@@ -16,7 +16,7 @@ statement := <conditional>
 
 
 -- expressions
-get := <varname> | <literal>
+get := <identifier name> | <literal>
 
 -- literals
 literal := <boolean> | <number> | <string>
@@ -25,21 +25,24 @@ number := <digit>+ | <digit>+.<digit>+
 boolean := true | false
 string := "...any number of char"
 
-identifier := <varname> <typename>
+identifier := <identifier name> <typename>
+identifier name := <varname>
 varname := <letter>+ <digit>*
 letter := a | b | c | d | e | f | ... | A | B | ... | Z
 digit := 0 | ... | 9
 typename := : <varname>
 
-procedural call := (do/yap <operator> <operand>)
+procedure call := (do/yap <operator> <operand>)
 operator := opchar | <varname>
 opchar := + | - | * | / | % | < | > | & | \| | !
-operand := (<expression>*)
+operand := (<typed expression>*)
 
-assignment := ( def/tanim <identifier> <expression> )
+assignment := ( def/tanim <identifier> <typed expression> )
+
+typed expression :=  <literal> | <identifier name> | <procedure call>
 
 conditional := (eger/if <test> <consequent> <alternate>)
-test := (<literal>) | <procedural call> | (<varname>)
+test := (<literal>) | <procedure call> | (<varname>)
 consequent := (then/ise <sequence>)
 alternate := (else/yoksa <sequence>)
 
@@ -52,11 +55,13 @@ body := <sequence>
 
 sequence := ( seq/liste <expression>+ )
 
+-- typed sequence for collections ? something like (seq identifier exprs*)
+
 -}
 
 type LineInfo = Int
 
-data Identifier = IdExpr VarName TypeName LineInfo -- parsed - eval
+data Identifier = IdExpr IdentifierName TypeName LineInfo -- parsed - eval
 
 instance Show Identifier where
     show (IdExpr a b _) = show a ++ ": " ++ show b
@@ -65,26 +70,23 @@ instance Eq Identifier where
     (IdExpr a b _) == (IdExpr c d _) = (a == c) && (b == d)
 
 data VarName = VName String TokenInfo
-data TypeName = TName String TokenInfo
+
+type TypeName = VarName
+type IdentifierName = VarName
+type ModuleName = VarName
 
 instance Show VarName where
     show (VName v _) = v
 
-instance Show TypeName where
-    show (TName v _) = show v
-
 instance Eq VarName where
     (VName v _) == (VName a _) = v == a
-
-instance Eq TypeName where
-    (TName v _) == (TName a _) = v == a
 
 debugVarName :: VarName -> String
 debugVarName (VName s i) =
     "{\"variable-name\": " ++ s ++ debugTokenInfo i ++ "}"
 
 debugTypeName :: TypeName -> String
-debugTypeName (TName s j) =
+debugTypeName (VName s j) =
     let key = "\"type-name\": "
         val = "\"" ++ s ++ "\","
         infokey = "\"info\": "
@@ -208,13 +210,30 @@ instance Show Operator where
 instance Eq Operator where
     (OpName c) == (OpName f) = c == f
 
-data Operand = OprExpr [Expr]
+data Operand = OprExpr [TypedExpr]
 
 instance Show Operand where
     show (OprExpr exps) = "( " ++ (unwords $ map show exps) ++ " )"
 
 instance Eq Operand where
     (OprExpr a) == (OprExpr b) = a == b
+
+data TypedExpr = TypedLit Literal
+               | TypedId IdentifierName
+               | TypedCall ProcedureCall
+
+instance Eq TypedExpr where
+    (TypedLit a) == (TypedLit b) = a == b
+    (TypedLit _) == _ = False
+    (TypedId a) == (TypedId b) = a == b
+    (TypedId _) == _ = False
+    (TypedCall a) == (TypedCall b) = a == b
+    (TypedCall _) == _ = False
+
+instance Show TypedExpr where
+    show (TypedLit a) = show a
+    show (TypedId a) = show a
+    show (TypedCall a) = show a
 
 data Sequence = SeqExpr {parent :: Expr, child :: Expr}
 
@@ -232,7 +251,7 @@ instance Eq Sequence where
 data Statement = AssignStmt Assign -- eval written
                 | CondStmt Conditional -- eval written
                 | ProcDefStmt ProcedureDefinition -- eval written
-                | CallStmt ProcedureCall TokenInfo
+                | CallStmt ProcedureCall
                 | LoopStmt Loop -- eval written
                 | SeqStmt Sequence -- eval written
 
@@ -242,7 +261,7 @@ instance Show Statement where
     show (LoopStmt a) = show a
     show (ProcDefStmt a) = show a
     show (SeqStmt a) = show a
-    show (CallStmt a _) = show a
+    show (CallStmt a ) = show a
 
 
 instance Eq Statement where
@@ -256,8 +275,8 @@ instance Eq Statement where
     (ProcDefStmt _) == _ = False
     (SeqStmt a) == (SeqStmt b) = a == b
     (SeqStmt _) == _ = False
-    (CallStmt a _) == (CallStmt b _) = a == b
-    (CallStmt _ _) == _ = False
+    (CallStmt a ) == (CallStmt b ) = a == b
+    (CallStmt _ ) == _ = False
 
 debugStatement :: Statement -> String
 debugStatement (AssignStmt a) = "Assign statement " ++ show a
@@ -266,7 +285,7 @@ debugStatement (LoopStmt a) = "Loop statement " ++ show a
 debugStatement (ProcDefStmt a) = 
     "Procedural definition statement " ++ debugProcDef a
 debugStatement (SeqStmt a) = "Sequence statement " ++ debugSequence a
-debugStatement (CallStmt a _) = "Call statement " ++ debugProcCall a
+debugStatement (CallStmt a ) = "Call statement " ++ debugProcCall a
 
 statementInfo :: Statement -> TokenInfo
 statementInfo (AssignStmt (Assigner aid _)) =
@@ -289,7 +308,7 @@ statementInfo (ProcDefStmt pdef) =
     let IdExpr (VName _ info) _ _ = procname pdef
     in info
 
-statementInfo (CallStmt _ i) = i
+statementInfo (CallStmt a) = procCallInfo a
 
 getExprInfo :: Expr -> TokenInfo
 getExprInfo (GExpr (GetVName (VName _ i))) = i

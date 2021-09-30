@@ -3,6 +3,7 @@ module IfExprTests(iftests) where
 import Lexer.Lexer
 -- import Parser
 import Eval.Evaluator
+import Eval.RunEval
 import Expression.Expression
 import Test.HUnit
 

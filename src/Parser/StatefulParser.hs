@@ -3,7 +3,12 @@ module Parser.StatefulParser where
 import Lexer.Lexer hiding (number)
 import Prelude hiding (sequence)
 import Expression.Expression
+import Lexer.Keyword
 import Parser.ASTree
+import Parser.ParseError
+import Parser.ParsingState
+import Parser.ParseResult
+import Parser.ParseUtils hiding (Input)
 
 -- import Text.ParserCombinators.ReadP
 import Control.Applicative
@@ -11,58 +16,11 @@ import qualified Data.Map as DMap
 import qualified Data.List as DList
 -- import Control.Monad.State.Lazy
 
-type ParsingState = DMap.Map String String
-type Keywords = DMap.Map String [String]
-
-emptyState :: ParsingState
-emptyState = DMap.empty
-
-emptyKeywords :: Keywords
-emptyKeywords = DMap.empty
-
-
-data ParseResult a = PError String 
-                     | PResult (Keywords, ParsingState, a)
-                     deriving (Show)
-
--- keyword
-iskey :: String -> String -> Keywords -> Bool
-iskey key given keys =
-    if DMap.member key keys
-    then let klst = keys DMap.! key
-         in given `elem` klst
-    else False
-
-
-result :: ParseResult a -> Either String a
-result (PResult (_,_,a)) = Right a
-result (PError s) = Left s
-
-reduceResult :: [ParseResult a] -> [a]
-reduceResult [] = []
-reduceResult (t:ts) =
-    case result t of
-        (Right a) -> a : reduceResult ts
-        (Left _) -> []
-
-isParsed :: ParseResult a -> Bool
-isParsed (PResult _) = True
-isParsed (PError _) = False
-
 instance Functor ParseResult where
     -- fmap :: (a -> b) -> f a -> f b
     fmap f (PResult (k, p, a)) = PResult (k, p, f a)
     fmap _ (PError err) = PError err
 
-
-
-parseError :: STree -> String -> String
-parseError t m = 
-    let msg = "CAN NOT PARSE TOKEN(S): \n\
-   \ " ++ show t ++ " AS\n\
-   \ " ++ m ++ " AT\n "
-        msg2 = msg ++ debugSTree t
-    in msg2
 
 type Input = (Keywords, ParsingState, STree)
 
@@ -120,7 +78,7 @@ statement (k, p, SList (SName a b: c)) =
                         (PError e) -> PError (e ++ lnb)
                  else if isPCallWord
                       then case procedureCall (k, p, toks) of
-                                (PResult (k2, p2, cstmt)) -> PResult (k2, p2, CallStmt cstmt b)
+                                (PResult (k2, p2, cstmt)) -> PResult (k2, p2, CallStmt cstmt)
                                 (PError e) -> PError (e ++ lnb)
                       else if isDefWord
                            then case assignment (k, p, toks) of
@@ -245,7 +203,7 @@ procedureDefinition (k, p, SList [SName _ b, SVar c d e, SList f, SList (SName g
 procedureDefinition (_, _, a) = PError $ parseError a "procedure definition"
 -- arguments
 parseIdentifier :: STree -> Identifier
-parseIdentifier (SVar a b c) = IdExpr (VName a c) (TName b c) (lineNumber c)
+parseIdentifier (SVar a b c) = IdExpr (VName a c) (VName b c) (lineNumber c)
 parseIdentifier a = error $ parseError a "identifier"
 
 isId :: STree -> Bool
@@ -311,6 +269,45 @@ operator (_, _, _) = PError "does not match to operator"
 -- operand
 operand :: Input -> ParseResult Operand
 
+isTypeExpr :: Input -> Bool
+isTypeExpr a = case typedExpression a of
+                    (PResult _) -> True
+                    (PError _) -> False
+
+isTypeExprAll :: (Keywords, ParsingState, [STree]) -> Bool
+isTypeExprAll (k, s, []) = True
+isTypeExprAll (k, s, (b:bs)) = if isTypeExpr (k, s, b)
+                               then isTypeExprAll (k, s, bs)
+                               else False
+
+typedExpression :: Input -> ParseResult TypedExpr
+typedExpression (k, p, a) = 
+    case variableName (k, p, a) of
+        (PResult (k2, p2, tid)) -> PResult (k2, p2, TypedId tid)
+        (PError _) ->
+            case literal (k, p, a) of
+                (PResult (k2, p2, tl)) -> PResult (k2, p2, TypedLit tl)
+                (PError _) ->
+                    case procedureCall (k, p, a) of
+                        (PResult (k2, p2, tc)) -> PResult (k2, p2, TypedCall tc)
+                        (PError e) -> 
+                            PError $ 
+                                parseError a ("procedural call in typed expression " ++ e) 
+                (PError e) ->
+                    PError $ parseError a ("literal in typed expression " ++ e)
+        (PError e) ->
+            PError $ parseError a ("identifier in typed expression " ++ e)
+
+operand (k, p, SList a) =
+    let allExpr = isTypeExprAll (k, p, a)
+        linput = (k, p, SList a)
+    in if allExpr
+       then PResult (k,p, OprExpr $ mapReducePResult typedExpression linput)
+       else PError "operand contains tokens that can not be parsed as typed expressions"
+
+operand (_, _,  a) = PError $ parseError a "operand"
+
+-- sequence
 isExpr :: Input -> Bool
 isExpr i = case expression i of
                 (PResult _) -> True
@@ -321,34 +318,42 @@ isExprAll (_, _, []) = True
 isExprAll (k, p, (e:es)) = (isExpr (k,p, e)) && (isExprAll (k, p, es))
 
 expressions :: Input -> [ParseResult Expr]
-
-expressions (_,_, SList []) = []
-expressions (k,p, SList (e:es)) = 
-    (expression (k, p, e)) : (expressions (k, p, SList es))
-
-
+expressions a = mapPResult expression a
 expressions (_,_, a) = error $ parseError a "multiple expressions"
 
-operand (k, p, SList a) =
-    let allExpr = isExprAll (k, p, a)
-    in if allExpr
-       then PResult (k,p, OprExpr $ reduceResult (expressions (k, p, SList a)))
-       else PError "operand contains tokens that can not be parsed as expression"
-
-operand (_, _,  a) = PError $ parseError a "operand"
--- sequence
-
 sequence :: Input -> ParseResult Sequence
-sequence (k, p, SList (SName a b:e)) =
+sequence (k, p, SList (SName _ b:e)) =
     let allExpr = isExprAll (k, p, e)
         exprInput = (k, p, SList e)
     in if allExpr
-       then PResult (k,p, fromExprToSeq $ reduceResult (expressions exprInput))
-       else let (parsable, unParsable) = DList.partition isParsed (expressions exprInput)
+       then PResult (k,p, fromExprToSeq $ reducePResult (expressions exprInput))
+       else let (_, unParsable) = DList.partition isParsed (expressions exprInput)
                 msg = "sequence contains tokens that can not be parsed as expression"
                 msg2 =  msg ++ " " ++ (show $ last unParsable) ++ " " ++ show b
             in PError msg2
-            
-
 
 sequence (_, _, a) = PError $ parseError a "sequence"
+
+-- literal and identifier name
+literal :: Input -> ParseResult Literal
+literal (k, p, SLit a) = case a of
+                            (StringLit b c) -> PResult (k,p, StrLit b c)
+                            (BoolLit b c) -> PResult (k,p, BLit b c)
+                            (NumericLit b c) -> PResult (k,p, NumLit b c)
+
+literal (_, _, a) = PError $ parseError a "literal"
+
+-- variable name
+variableName :: Input -> ParseResult VarName
+variableName (k, p, SName a b) = PResult (k, p, VName a b)
+variableName (_, _, a) = PError $ parseError a "variable name"
+
+typeName :: Input -> ParseResult TypeName
+typeName = variableName
+
+moduleName :: Input -> ParseResult ModuleName
+moduleName = variableName
+
+-- TODO change after implementing state
+identifierName :: Input -> ParseResult IdentifierName
+identifierName = variableName

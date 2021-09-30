@@ -26,10 +26,16 @@ source-repository head
 library
   exposed-modules:
       Eval.Evaluator
+      Eval.RunEval
       Expression.Expression
+      Lexer.Keyword
       Lexer.Lexer
       Parser
       Parser.ASTree
+      Parser.ParseError
+      Parser.ParseResult
+      Parser.ParseUtils
+      Parser.ParsingState
       Parser.StatefulParser
       RuntimeEnv.FnBool
       RuntimeEnv.FnNumber

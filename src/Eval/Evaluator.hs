@@ -143,7 +143,7 @@ evaluate (StmtExpr (CondStmt a) ) =
         (CTestLit lit) -> eval lit conseq alter
         (CTestProc p) -> let tinfo = procCallInfo p
             in do
-                result <- evaluate (StmtExpr (CallStmt p tinfo))
+                result <- evaluate (StmtExpr (CallStmt p))
                 case result of
                     --
                     (GExpr (GetLit lit)) -> eval lit conseq alter
@@ -178,7 +178,7 @@ evaluate (StmtExpr (LoopStmt loopE) ) =
                              in error msg2
             (CTestLit lit) -> eval loopE lit
             (CTestProc p) -> do
-                result <- evaluate (StmtExpr (CallStmt p (procCallInfo p)))
+                result <- evaluate (StmtExpr (CallStmt p))
                 case result of
                     --
                     (GExpr (GetLit lit)) -> eval loopE lit
@@ -206,21 +206,21 @@ evaluate (StmtExpr (LoopStmt loopE) ) =
                 else evaluate EndExpr
 
 -- evaluate function call expression
-evaluate (StmtExpr (CallStmt procCall i)) = -- (+ 1 2) - (set var 456)
+evaluate (StmtExpr (CallStmt procCall)) = -- (+ 1 2) - (set var 456)
     -- type checking can be done here
     -- IdExpr has another field (TName) registering types of variables
     let (Proc (OpName (VName op info)) pseq) = procCall
     in
         case pseq of
             -- evaluate unary operations
-            (OprExpr [exp1]) -> evalUn op exp1 info
+            (OprExpr [exp1]) -> evalUn op (toExpr exp1) info
             -- basic binary arithmetic operations
             (OprExpr [exp1, exp2]) -> do
-                f <- evaluate exp1
-                s <- evaluate exp2
+                f <- evaluate (toExpr exp1)
+                s <- evaluate (toExpr exp2)
                 evalBin op f s info
             -- call expression of a defined function
-            (OprExpr exps) -> evalNarg op info exps
+            (OprExpr exps) -> evalNarg op info (map toExpr exps)
     where evalNarg funcName tinfo es = do
             procExpr <- lookUp funcName tinfo 
             let (StmtExpr (ProcDefStmt a)) = procExpr
@@ -295,6 +295,7 @@ evaluate (StmtExpr (CallStmt procCall i)) = -- (+ 1 2) - (set var 456)
                        -- in error $ "equal came: " ++ debugExpr first
                 "!" -> return $ GExpr $ GetLit (BLit (first /= second) (getExprInfo first))
                 _ -> evalNarg ch tinfo [first, second]
+
           evalUn op e tinfo =
                 let msgpref = "expression must be a "
                     msgend = " at line " ++ debugTokenInfo tinfo
@@ -310,6 +311,11 @@ evaluate (StmtExpr (CallStmt procCall i)) = -- (+ 1 2) - (set var 456)
                                    in return $ GExpr (GetLit (BLit (not b) j))
                               else error $ msgpref ++ "boolean" ++ msgend
                     _ -> evalNarg op tinfo [e]
+          toExpr texpr =
+            case texpr of
+                (TypedLit lit) -> GExpr $ GetLit lit
+                (TypedId vn) -> GExpr $ GetVName vn
+                (TypedCall c) -> StmtExpr (CallStmt c)
 
 {-
 
@@ -330,67 +336,3 @@ evaluate EndExpr = return $ GExpr (GetLit (StrLit "" $ mkTokInfo (-1) (-1) "" ""
 
 -- eval not matched
 evaluate a = error $ "the following expression is not matched: " ++ debugExpr a 
-
--- value reference
-
-defaultKWords :: Keywords
-defaultKWords = DMap.fromList [
-                            ("do", ["do", "yap"]),
-                            ("seq", ["seq", "list"]),
-                            ("fn", ["fn", "edim"]),
-                            ("if", ["if", "eger"]),
-                            ("loop", ["loop", "dongu"]),
-                            ("then", ["then", "ise"]),
-                            ("else", ["else", "yoksa"]),
-                            ("def", ["def", "tanim"]),
-                            ("(", ["("]),
-                            (")", [")"])
-                ]
-
--- test functions
-exprCheck :: String -> Expr -> Bool
-exprCheck arg expected =
-    let kws = defaultKWords
-        lefts = kws DMap.! "("
-        rights = kws DMap.! ")"
-        toks = tokenize (lefts, rights) arg 0 0
-        pexps = expression (defaultKWords, emptyState, parseAll toks)
-    in
-        case pexps of
-            (PResult (_, _, res)) ->
-                let act = runState $ evaluate res
-                    (expr, _) = act (DMap.fromList [("k", EndExpr)])
-                    expb = expr == expected
-
-                in if expb
-                   then True
-                   else let msg = "unexpected " ++ debugExpr expr
-                        in error $ msg ++ " parsed: " ++ debugExpr res
-            (PError e) -> error $ "Error: " ++ e
-
-
-runEval2 :: String -> Keywords -> Expr
-runEval2 toks kws =
-    let lefts = kws DMap.! "("
-        rights = kws DMap.! ")"
-        tp = tokenize (lefts, rights) toks 0 0
-        stree = parseAll tp
-        pexps = expression $ (kws, emptyState, stree)
-    in
-        case pexps of
-            (PResult (_, _, res)) -> let act = runState $ evaluate res
-                                         (expr, _) = act (DMap.fromList [("f", EndExpr)])
-                                in expr
-            (PError e) -> error $ "Error: " ++ show e
-
-
-runEval :: String -> Expr
-runEval toks = runEval2 toks defaultKWords
-    
-
-peval :: String -> IO ()
-peval toks = print $ runEval toks
-peval2 :: String -> Keywords -> IO ()
-peval2 toks kws = print $ runEval2 toks kws
--- (+ 1 2)
--- (set var1 (+ 1 564))

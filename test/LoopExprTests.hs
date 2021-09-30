@@ -5,6 +5,7 @@ import Lexer.Lexer
 --import CombinedParser
 import Eval.Evaluator
 import Expression.Expression
+import Eval.RunEval
 import Test.HUnit
 
 -- import qualified Data.Map as DMap

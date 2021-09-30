@@ -6,6 +6,8 @@ import Data.List
 import qualified Data.Map as DMap
 
 import Parser.StatefulParser
+import Eval.RunEval
+import Lexer.Keyword
 
 readKeywords :: String -> Keywords
 readKeywords fileContents =
