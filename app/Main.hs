@@ -1,11 +1,11 @@
 module Main (main) where
 
-import Evaluator
+import Eval.Evaluator
 import System.Environment
 import Data.List
 import qualified Data.Map as DMap
 
-import StatefulParser
+import Parser.StatefulParser
 
 readKeywords :: String -> Keywords
 readKeywords fileContents =

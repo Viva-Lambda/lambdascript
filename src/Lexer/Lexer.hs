@@ -1,5 +1,5 @@
 -- lexer module
-module Lexer where
+module Lexer.Lexer where
 
 import Data.Char
 import Text.Read

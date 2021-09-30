@@ -1,13 +1,14 @@
 -- evaluator module for our parser
-module Evaluator where
-import Lexer
+module Eval.Evaluator where
+import Lexer.Lexer
 -- import Parser
-import StatefulParser
+import Parser.StatefulParser
+import Parser.ASTree
 -- import CombinedParser
-import Expression
-import FnNumber
-import FnBool
-import ASTree
+import Expression.Expression
+
+import RuntimeEnv.FnNumber
+import RuntimeEnv.FnBool
 -- import Control.Monad.State
 import qualified Data.Map as DMap
 import Control.Monad.State.Lazy

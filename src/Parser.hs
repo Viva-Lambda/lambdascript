@@ -1,8 +1,8 @@
 -- implement a parser for simple language
 module Parser where
-import Lexer
-import Expression
-import ASTree
+import Lexer.Lexer
+import Expression.Expression
+import Parser.ASTree
 
 -- (while (< x 2) (set x (+ x 1)))
 

@@ -25,14 +25,14 @@ source-repository head
 
 library
   exposed-modules:
-      ASTree
-      Evaluator
-      Expression
-      FnBool
-      FnNumber
-      Lexer
+      Eval.Evaluator
+      Expression.Expression
+      Lexer.Lexer
       Parser
-      StatefulParser
+      Parser.ASTree
+      Parser.StatefulParser
+      RuntimeEnv.FnBool
+      RuntimeEnv.FnNumber
   other-modules:
       Paths_lambdascript
   hs-source-dirs:

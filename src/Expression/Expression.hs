@@ -1,6 +1,6 @@
-module Expression where
+module Expression.Expression where
 
-import Lexer
+import Lexer.Lexer
 
 {-
 Here is the grammar of the language

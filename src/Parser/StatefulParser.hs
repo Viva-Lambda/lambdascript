@@ -1,9 +1,9 @@
-module StatefulParser where
+module Parser.StatefulParser where
 
-import Lexer hiding (number)
+import Lexer.Lexer hiding (number)
 import Prelude hiding (sequence)
-import Expression
-import ASTree
+import Expression.Expression
+import Parser.ASTree
 
 -- import Text.ParserCombinators.ReadP
 import Control.Applicative

@@ -1,9 +1,9 @@
 module FuncExprTests(fntests) where
 
-import Lexer
+import Lexer.Lexer
 import Parser
-import Evaluator
-import Expression
+import Eval.Evaluator
+import Expression.Expression
 import Test.HUnit
 
 import qualified Data.Map as DMap

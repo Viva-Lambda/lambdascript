@@ -1,8 +1,8 @@
 -- standard boolean expression functions
-module FnBool where
+module RuntimeEnv.FnBool where
 
-import Lexer
-import Expression
+import Lexer.Lexer
+import Expression.Expression
 
 boolBinExprFn :: (Bool -> Bool -> Bool) -> Expr -> Expr -> Expr
 boolBinExprFn 

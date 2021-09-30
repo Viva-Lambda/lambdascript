@@ -1,7 +1,7 @@
 -- abstract syntax tree
-module ASTree where
+module Parser.ASTree where
 
-import Lexer
+import Lexer.Lexer
 import Data.List
 
 -- 

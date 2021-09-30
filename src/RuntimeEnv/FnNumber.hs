@@ -1,9 +1,9 @@
 -- standard number expression functions
-module FnNumber where
+module RuntimeEnv.FnNumber where
 
 
-import Expression
-import Lexer
+import Expression.Expression
+import Lexer.Lexer
 
 -- numeric expression function
 numBinExprFn :: (Double -> Double -> Double) -> Expr -> Expr -> Expr
