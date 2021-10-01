@@ -1,9 +1,14 @@
 module Parser.StatefulParser where
 
-import Lexer.Lexer hiding (number)
 import Prelude hiding (sequence)
-import Expression.Expression
+
+import Lexer.Lexer hiding (number)
 import Lexer.Keyword
+
+import Expression.Expression
+import Expression.ExprUtils
+
+-- parser
 import Parser.ASTree
 import Parser.ParseError
 import Parser.ParsingState
@@ -236,7 +241,7 @@ assignment :: Input -> ParseResult Assign
 assignment (k,p, (SList [SName _ b, SVar c d e, f])) =
     let ids = parseIdentifier (SVar c d e)
         lnb = " :in assignment line " ++ show (lineNumber b) ++ " : "
-    in case expression (k, p, f) of
+    in case typedExpression (k, p, f) of
             (PResult (k2, p2, expr)) -> PResult (k2, p2, Assigner ids expr)
             (PError m) -> PError (m ++ lnb)
 

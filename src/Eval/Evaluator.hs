@@ -6,6 +6,8 @@ import Parser.StatefulParser
 import Parser.ASTree
 -- import CombinedParser
 import Expression.Expression
+import Expression.ExprUtils
+import Expression.Debug
 
 import RuntimeEnv.FnNumber
 import RuntimeEnv.FnBool
@@ -68,18 +70,6 @@ addIdsExpZipEval (ie:ies) = do
     _ <- addIdExpZipEval ie 
     addIdsExpZipEval ies
 
--- check for expression types
-isNumericExpr :: Expr -> Bool
-isNumericExpr (GExpr (GetLit (NumLit _ _))) = True
-isNumericExpr _ = False
-
-isBoolExpr :: Expr -> Bool
-isBoolExpr (GExpr (GetLit (BLit _ _)) ) = True
-isBoolExpr _ = False
-
--- default functions
-
-
 foldlSequence :: Sequence -> Evaluator Expr
 foldlSequence SeqExpr {parent = EndExpr, child = EndExpr} = return EndExpr
 foldlSequence SeqExpr {parent = a, child = EndExpr} = evaluate a
@@ -89,6 +79,7 @@ foldlSequence SeqExpr {parent = a, child = b} = do
     _ <- evaluate a
     inner <- evaluate b
     return inner
+
 
 -- evaluation function
 evaluate :: Expr -> Evaluator Expr
@@ -109,7 +100,7 @@ let p4 = "\"dsklmkm\""
 evaluate (StmtExpr (AssignStmt a)) =
     let (Assigner (IdExpr (VName aid _) _ _) aexp) = a
     in do
-        expr <- evaluate aexp
+        expr <- evaluate (fromTyExpr2Expr aexp)
         -- error $ "vname " ++ aid ++ " expr " ++ show aexp
         addSymbol aid expr
         return expr
@@ -213,14 +204,14 @@ evaluate (StmtExpr (CallStmt procCall)) = -- (+ 1 2) - (set var 456)
     in
         case pseq of
             -- evaluate unary operations
-            (OprExpr [exp1]) -> evalUn op (toExpr exp1) info
+            (OprExpr [exp1]) -> evalUn op (fromTyExpr2Expr exp1) info
             -- basic binary arithmetic operations
             (OprExpr [exp1, exp2]) -> do
-                f <- evaluate (toExpr exp1)
-                s <- evaluate (toExpr exp2)
+                f <- evaluate (fromTyExpr2Expr exp1)
+                s <- evaluate (fromTyExpr2Expr exp2)
                 evalBin op f s info
             -- call expression of a defined function
-            (OprExpr exps) -> evalNarg op info (map toExpr exps)
+            (OprExpr exps) -> evalNarg op info (map fromTyExpr2Expr exps)
     where evalNarg funcName tinfo es = do
             procExpr <- lookUp funcName tinfo 
             let (StmtExpr (ProcDefStmt a)) = procExpr
@@ -311,12 +302,7 @@ evaluate (StmtExpr (CallStmt procCall)) = -- (+ 1 2) - (set var 456)
                                    in return $ GExpr (GetLit (BLit (not b) j))
                               else error $ msgpref ++ "boolean" ++ msgend
                     _ -> evalNarg op tinfo [e]
-          toExpr texpr =
-            case texpr of
-                (TypedLit lit) -> GExpr $ GetLit lit
-                (TypedId vn) -> GExpr $ GetVName vn
-                (TypedCall c) -> StmtExpr (CallStmt c)
-
+          
 {-
 
 Test numeric expressions

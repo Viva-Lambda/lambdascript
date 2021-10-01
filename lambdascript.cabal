@@ -27,7 +27,9 @@ library
   exposed-modules:
       Eval.Evaluator
       Eval.RunEval
+      Expression.Debug
       Expression.Expression
+      Expression.ExprUtils
       Lexer.Keyword
       Lexer.Lexer
       Parser

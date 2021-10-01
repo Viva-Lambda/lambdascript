@@ -3,11 +3,13 @@ module Eval.RunEval where
 
 import Lexer.Lexer
 import Lexer.Keyword
-import Expression.Expression
 import Parser.ASTree
 import Parser.ParsingState
 import Parser.StatefulParser
 import Parser.ParseResult
+import Expression.Expression
+import Expression.ExprUtils
+import Expression.Debug
 import Eval.Evaluator
 import qualified Data.Map as DMap
 import Control.Monad.State.Lazy

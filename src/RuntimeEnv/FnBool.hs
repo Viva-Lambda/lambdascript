@@ -2,7 +2,9 @@
 module RuntimeEnv.FnBool where
 
 import Lexer.Lexer
+
 import Expression.Expression
+import Expression.Debug
 
 boolBinExprFn :: (Bool -> Bool -> Bool) -> Expr -> Expr -> Expr
 boolBinExprFn 

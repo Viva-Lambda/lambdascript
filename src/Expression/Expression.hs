@@ -81,38 +81,10 @@ instance Show VarName where
 instance Eq VarName where
     (VName v _) == (VName a _) = v == a
 
-debugVarName :: VarName -> String
-debugVarName (VName s i) =
-    "{\"variable-name\": " ++ s ++ debugTokenInfo i ++ "}"
-
-debugTypeName :: TypeName -> String
-debugTypeName (VName s j) =
-    let key = "\"type-name\": "
-        val = "\"" ++ s ++ "\","
-        infokey = "\"info\": "
-        infoval = debugTokenInfo j
-    in "{" ++ key ++ val ++ infokey ++ infoval ++ "}"
-
-debugIdentifier :: Identifier -> String
-
-debugIdentifier (IdExpr a b line) = 
-    let key = "{\"identifier\": {"
-        varkey = "\"name\": "
-        varval = debugVarName a
-        typekey = ",\"type\": "
-        typeval = debugTypeName b
-        msg4 =  varkey ++ varval ++ typekey ++ typeval ++ ikeyval ++ "}"
-        ikeyval = ", \"line\": " ++ show line ++ "}"
-    in key ++ msg4 ++ ikeyval
 
 data Literal = BLit Bool TokenInfo
               | StrLit String TokenInfo
               | NumLit Double TokenInfo
-
-getLitTokenInfo :: Literal -> TokenInfo
-getLitTokenInfo (BLit _ i) = i
-getLitTokenInfo (StrLit _ i) = i
-getLitTokenInfo (NumLit _ i) = i
 
 instance Show Literal where
     show (BLit b _) = if b
@@ -131,21 +103,6 @@ instance Eq Literal where
     (NumLit a _) == (NumLit b _) = a == b
     (NumLit _ _) == _ = False
 
-debugLiteral :: Literal -> String
-debugLiteral a =
-    case a of
-        (BLit b t) -> 
-            let msg = "{\"literal\": " ++ show b ++ ", \"info\": "
-            in dmsg msg t
-        (NumLit b t) ->
-            let msg = "{\"literal\": " ++ show b++ ", \"info\": "
-            in dmsg msg t
-        (StrLit b t) ->
-            let msg = "{\"literal\": " ++ show b ++ ", \"info\": "
-            in dmsg msg t
-    where dmsg m info = 
-            let msg = debugTokenInfo info
-            in m ++ msg ++ "}"
 
 data Expr = GExpr GetExpr
             | StmtExpr Statement
@@ -156,10 +113,6 @@ instance Show Expr where
     show (StmtExpr a ) = show a
     show EndExpr = ""
 
-debugExpr :: Expr -> String
-debugExpr (GExpr a) = "GetExpr " ++ debugGetExpr a
-debugExpr (StmtExpr a) = "StmtExpr " ++ debugStatement a
-debugExpr EndExpr = "EndExpr" 
 
 instance Eq Expr where
     (GExpr a) == (GExpr b) = a == b
@@ -182,11 +135,6 @@ instance Eq GetExpr where
     (GetLit a) == (GetLit b) = a == b
     (GetLit _) == _ = False
 
-debugGetExpr :: GetExpr -> String
-debugGetExpr (GetVName v) = debugVarName v
-debugGetExpr (GetLit v) = debugLiteral v
-
-
 data ProcedureCall = Proc {op :: Operator, args :: Operand}
 
 instance Show ProcedureCall where
@@ -194,13 +142,6 @@ instance Show ProcedureCall where
 
 instance Eq ProcedureCall where
     (Proc o _) == (Proc p _) = o == p
-
-debugProcCall :: ProcedureCall -> String
-debugProcCall (Proc o iseq) = 
-    "Procedure Call with Operator " ++ show o ++ " and Operand " ++ show iseq
-
-procCallInfo :: ProcedureCall -> TokenInfo
-procCallInfo Proc {op=OpName (VName _ i), args=_} = i
 
 data Operator = OpName VarName
 
@@ -240,10 +181,6 @@ data Sequence = SeqExpr {parent :: Expr, child :: Expr}
 instance Show Sequence where
     show SeqExpr {parent=e, child=f} = show e ++ " " ++ show f
 
-debugSequence :: Sequence -> String
-debugSequence SeqExpr {parent=e, child=f} = "Sequence: \
-\ parent: " ++ debugExpr e ++ " child: " ++ debugExpr f
-
 instance Eq Sequence where
     SeqExpr {parent=e, child=f} == SeqExpr {parent=b, child=a} = 
         (e == b) && (f == a)
@@ -277,44 +214,6 @@ instance Eq Statement where
     (SeqStmt _) == _ = False
     (CallStmt a ) == (CallStmt b ) = a == b
     (CallStmt _ ) == _ = False
-
-debugStatement :: Statement -> String
-debugStatement (AssignStmt a) = "Assign statement " ++ show a
-debugStatement (CondStmt a) = "Conditiional statement " ++ show a
-debugStatement (LoopStmt a) = "Loop statement " ++ show a
-debugStatement (ProcDefStmt a) = 
-    "Procedural definition statement " ++ debugProcDef a
-debugStatement (SeqStmt a) = "Sequence statement " ++ debugSequence a
-debugStatement (CallStmt a ) = "Call statement " ++ debugProcCall a
-
-statementInfo :: Statement -> TokenInfo
-statementInfo (AssignStmt (Assigner aid _)) =
-    let IdExpr (VName _ info) _ _ = aid
-    in info
-statementInfo (CondStmt (Cond {ctest = a, consequent = _, alternate = _})) =
-    case a of
-        (CTestLit d) -> getLitTokenInfo d
-        (CTestProc d) -> procCallInfo d
-        (CTestVar (VName _ info)) -> info
-
-statementInfo (LoopStmt (Looper {ltest = a, lconsequent = _})) =
-    case a of
-        (CTestLit d) -> getLitTokenInfo d
-        (CTestProc d) -> procCallInfo d
-        (CTestVar (VName _ info)) -> info
-
-statementInfo (SeqStmt (SeqExpr {parent = a, child = _})) = getExprInfo a
-statementInfo (ProcDefStmt pdef) =
-    let IdExpr (VName _ info) _ _ = procname pdef
-    in info
-
-statementInfo (CallStmt a) = procCallInfo a
-
-getExprInfo :: Expr -> TokenInfo
-getExprInfo (GExpr (GetVName (VName _ i))) = i
-getExprInfo (GExpr (GetLit i) ) = getLitTokenInfo i
-getExprInfo (StmtExpr i) = statementInfo i 
-getExprInfo EndExpr = mkTokInfo (-1) (-1) "end of expression" ""
 
 
 data Conditional = Cond {ctest :: ConditionTest,
@@ -374,12 +273,6 @@ instance Show ProcedureDefinition where
     show DefineProc {procname=a, arguments=b, body=c} = 
         show a ++ " " ++ show b ++ " " ++ show c
 
-debugProcDef :: ProcedureDefinition -> String
-debugProcDef DefineProc {procname=a, arguments=b, body=c} =
-    let msg = "Procedure Defintion: "
-        msg2 = msg ++ "name: " ++ debugIdentifier a ++ " args: " ++ show b
-        msg3 = msg2 ++ "body: " ++ debugSequence c
-    in msg3
 
 instance Eq ProcedureDefinition where
     DefineProc {procname=a, arguments=b, body=c} == DefineProc {procname=d, arguments=e, body=f} =
@@ -389,7 +282,7 @@ instance Eq ProcedureDefinition where
         in (c1 && c2) && c3
 
 
-data Assign = Assigner Identifier Expr
+data Assign = Assigner Identifier TypedExpr
 
 instance Show Assign where
     show (Assigner aid e) = show aid ++ " " ++ show e
@@ -397,38 +290,6 @@ instance Show Assign where
 
 instance Eq Assign where
     (Assigner i1 e) == (Assigner i2 f) = (i1 == i2) && (e == f)
-
-reduceExpr :: [Expr] -> Expr
-reduceExpr [] = EndExpr
-
-reduceExpr (e:es) =
-    let children = reduceExpr es
-        seqe = SeqExpr {parent = e, child = children}
-        stmt = SeqStmt seqe
-    in StmtExpr stmt
-
-fromExprToSeq :: [Expr] -> Sequence
-fromExprToSeq [] = SeqExpr {parent = EndExpr, child = EndExpr}
-fromExprToSeq (e:es) = SeqExpr {parent = e, child = reduceExpr es}
-
-fromSeqToExprs :: Sequence -> [Expr]
--- end of sequence
-fromSeqToExprs SeqExpr {parent = EndExpr, child=EndExpr} = []
--- skip parent sequence
-fromSeqToExprs SeqExpr {parent = EndExpr, child=StmtExpr (SeqStmt s)} = fromSeqToExprs s
--- skip child sequence
-fromSeqToExprs SeqExpr {parent = StmtExpr (SeqStmt s) , child=EndExpr} = fromSeqToExprs s
--- both are sequences
-fromSeqToExprs SeqExpr {parent = StmtExpr (SeqStmt s) , child=StmtExpr (SeqStmt a) } = 
-    fromSeqToExprs s ++ fromSeqToExprs a
--- only parent is a sequence
-fromSeqToExprs SeqExpr {parent = StmtExpr (SeqStmt s), child=a} = 
-    fromSeqToExprs s ++ [a]
--- only child is a sequence
-fromSeqToExprs SeqExpr {parent = a, child=StmtExpr (SeqStmt s)} = [a] ++ fromSeqToExprs s
--- both are not a sequence
-fromSeqToExprs SeqExpr {parent = a, child = b} = [a] ++ [b]
-
 
 -- reduceExpr (e:es) = foldr SeqExpr EndExpr (e:es)
 
