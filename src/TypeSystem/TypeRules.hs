@@ -1,32 +1,66 @@
 -- typing rules for the type system
 module TypeSystem.TypeRules where
 
-import Expression.Expression
+import Expression.Identifier
+import qualified Data.Map as DMap
 
-{-
-function rule: 
-if f has type f: (s1,s2,s3) -> m and n1, n2, n3 have types s1, s2, s3
-then f(n1, n2, n3) produces a value in type m
--}
-data TypeFuncRule = FuncType 
+data TypedValue = ValueType String TypeName
 
-{-
-product rule:
-if f has type m x n and f(k,p) is such that k has type m 
-    then p has type n
--}
+instance Eq TypedValue where
+    (ValueType _ a) == (ValueType _ b) = a == b
 
-{-
-intersection rule:
-f has type m ^ n and f(k) is such that k is both m and n
--}
+data TypeFunction = FuncType { 
+    domain :: [TypedValue], codomain :: [TypedValue]
+    }
 
-{-
-union rule:
-f has type m ^ n and f(k) is such that k is both m and n
--}
+instance Eq TypeFunction where
+    (FuncType {domain = a,
+               codomain = b}) == (FuncType {domain = c,
+                                            codomain = d}) =
+        (a == c) && (b == d)
 
-{-
-record rule:
-if f has a type <x : t> then f has a member that has a type t
--}
+data TypeProduct = ProductType [TypedValue]
+
+instance Eq TypeProduct where
+    (ProductType a) == (ProductType b) = a == b
+
+data TypeIntersection = IntersectionType [TypedValue]
+
+instance Eq TypeIntersection where
+    (IntersectionType a) == (IntersectionType b) = a == b
+
+data TypeUnion = UnionType [TypedValue]
+
+instance Eq TypeUnion where
+    (UnionType a) == (UnionType b) = a == b
+
+data TypeRecord = RecordType String [TypedValue]
+
+instance Eq TypeRecord where
+    (RecordType _ a) == (RecordType _ b) = a == b
+
+data Typed = ValueTyper TypedValue
+            | FunctionTyper TypeFunction
+            | ProductTyper TypeProduct
+            | IntersectionTyper TypeIntersection
+            | UnionTyper TypeUnion
+            | RecordTyper TypeRecord
+
+instance Eq Typed where
+    (ValueTyper v) ==  (ValueTyper a) = v == a
+    (ValueTyper _) == _ = False
+
+    (FunctionTyper v) ==  (FunctionTyper a) = v == a
+    (FunctionTyper _) == _ = False
+
+    (ProductTyper v) ==  (ProductTyper a) = v == a
+    (ProductTyper _) == _ = False
+
+    (IntersectionTyper v) ==  (IntersectionTyper a) = v == a
+    (IntersectionTyper _) == _ = False
+
+    (UnionTyper v) ==  (UnionTyper a) = v == a
+    (UnionTyper _) == _ = False
+
+    (RecordTyper v) ==  (RecordTyper a) = v == a
+    (RecordTyper _) == _ = False
