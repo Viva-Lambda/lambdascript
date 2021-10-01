@@ -6,6 +6,8 @@ import Lexer.Lexer hiding (number)
 import Lexer.Keyword
 
 import Expression.Expression
+import Expression.Identifier
+import Expression.Literal
 import Expression.ExprUtils
 
 -- parser

@@ -2,6 +2,8 @@
 module Expression.Debug where
 
 import Expression.Expression
+import Expression.Identifier
+import Expression.Literal
 import Lexer.Lexer
 
 debugGetExpr :: GetExpr -> String

@@ -4,7 +4,10 @@ import Lexer.Lexer
 -- import Parser
 --import CombinedParser
 import Eval.Evaluator
+--
 import Expression.Expression
+import Expression.Identifier
+import Expression.Literal
 import Eval.RunEval
 import Test.HUnit
 

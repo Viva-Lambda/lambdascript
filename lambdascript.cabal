@@ -30,6 +30,8 @@ library
       Expression.Debug
       Expression.Expression
       Expression.ExprUtils
+      Expression.Identifier
+      Expression.Literal
       Lexer.Keyword
       Lexer.Lexer
       Parser
@@ -41,6 +43,7 @@ library
       Parser.StatefulParser
       RuntimeEnv.FnBool
       RuntimeEnv.FnNumber
+      TypeSystem.TypeRules
   other-modules:
       Paths_lambdascript
   hs-source-dirs:

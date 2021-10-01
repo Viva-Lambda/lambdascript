@@ -3,6 +3,8 @@ module RuntimeEnv.FnNumber where
 
 
 import Expression.Expression
+import Expression.Identifier
+import Expression.Literal
 import Expression.Debug
 import Lexer.Lexer
 

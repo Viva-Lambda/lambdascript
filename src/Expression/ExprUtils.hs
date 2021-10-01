@@ -2,6 +2,8 @@
 module Expression.ExprUtils where
 
 import Expression.Expression
+import Expression.Literal
+import Expression.Identifier
 
 -- check for expression types
 isNumericExpr :: Expr -> Bool

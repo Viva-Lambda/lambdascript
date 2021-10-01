@@ -1,6 +1,8 @@
 module Expression.Expression where
 
 import Lexer.Lexer
+import Expression.Identifier
+import Expression.Literal
 
 {-
 Here is the grammar of the language
@@ -59,49 +61,7 @@ sequence := ( seq/liste <expression>+ )
 
 -}
 
-type LineInfo = Int
 
-data Identifier = IdExpr IdentifierName TypeName LineInfo -- parsed - eval
-
-instance Show Identifier where
-    show (IdExpr a b _) = show a ++ ": " ++ show b
-
-instance Eq Identifier where
-    (IdExpr a b _) == (IdExpr c d _) = (a == c) && (b == d)
-
-data VarName = VName String TokenInfo
-
-type TypeName = VarName
-type IdentifierName = VarName
-type ModuleName = VarName
-
-instance Show VarName where
-    show (VName v _) = v
-
-instance Eq VarName where
-    (VName v _) == (VName a _) = v == a
-
-
-data Literal = BLit Bool TokenInfo
-              | StrLit String TokenInfo
-              | NumLit Double TokenInfo
-
-instance Show Literal where
-    show (BLit b _) = if b
-                    then "true"
-                    else "false"
-    show (StrLit s _) = "\""++ s ++ "\""
-    show (NumLit s _) = show s
-
-instance Eq Literal where
-    (BLit a _) == (BLit b _) = a == b
-    (BLit _ _) == _ = False
-
-    (StrLit a _) == (StrLit b _) = a == b
-    (StrLit _ _) == _ = False
-
-    (NumLit a _) == (NumLit b _) = a == b
-    (NumLit _ _) == _ = False
 
 
 data Expr = GExpr GetExpr
