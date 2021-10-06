@@ -22,7 +22,7 @@ fnstr = "(seq (fn threearg: float \n\
 test1 :: Test
 test1 = TestCase ( 
         assertEqual ("for seq expression " ++ fnstr) True 
-        (exprCheck fnstr (GExpr (GetLit (NumLit 6.0 (mkTokInfo 0 0 "" "")))))
+        (exprCheck fnstr (GExpr (GetLit (NumLit 6.0 (mkTokInfo 0 0 "" "" "")))))
     )
 
 
@@ -40,7 +40,7 @@ fnstr2 = "(seq (fn two: float \n\
 test2 :: Test
 test2 = TestCase ( 
         assertEqual ("for fn expression " ++ fnstr2) True 
-        (exprCheck fnstr2 (GExpr (GetLit (NumLit 5.0 (mkTokInfo 0 0 "" "")))))
+        (exprCheck fnstr2 (GExpr (GetLit (NumLit 5.0 (mkTokInfo 0 0 "" "" "")))))
     )
 
 

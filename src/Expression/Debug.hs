@@ -107,7 +107,7 @@ getExprInfo :: Expr -> TokenInfo
 getExprInfo (GExpr (GetVName (VName _ i))) = i
 getExprInfo (GExpr (GetLit i) ) = getLitTokenInfo i
 getExprInfo (StmtExpr i) = statementInfo i 
-getExprInfo EndExpr = mkTokInfo (-1) (-1) "end of expression" ""
+getExprInfo EndExpr = mkTokInfo (-1) (-1) "end of expression" "" ""
 
 debugProcDef :: ProcedureDefinition -> String
 debugProcDef DefineProc {procname=a, arguments=b, body=c} =

@@ -92,7 +92,7 @@ getSTreeTokInfo (SVar _ _ b) = b
 getSTreeTokInfo (SLit (BoolLit _ b)) = b
 getSTreeTokInfo (SLit (StringLit _ b)) = b
 getSTreeTokInfo (SLit (NumericLit _ b)) = b
-getSTreeTokInfo (SList []) = TokInfo (-1) (-1) "" ""
+getSTreeTokInfo (SList []) = TokInfo (-1) (-1) "" "" ""
 getSTreeTokInfo (SList (a:_)) = getSTreeTokInfo a
 
 
@@ -110,16 +110,18 @@ parseOne (TokLPar _: toks) =
 parseOne (TokSymbol sym ainfo : TokSep _ _: TokSymbol anno _ :tokens) = 
     ([SVar sym anno ainfo], tokens)
 
-parseOne (TokSep _ (TokInfo line col _ _): TokSymbol _ _ :_) = 
+parseOne (TokSep _ (TokInfo line col _ _ f): TokSymbol _ _ :_) = 
     let msg = "typename seperator must be preceded by a variable name"
         msg2 = msg ++ " at line " ++ show line ++ " column " ++ show col
-    in error msg2
+        msg3 = msg2 ++ " file: " ++ f
+    in error msg3
 
-parseOne (TokSep _ (TokInfo line col _ _): _) = 
+parseOne (TokSep _ (TokInfo line col _ _ f): _) = 
     let msg = "typename seperator must be preceded by a variable name"
         msg2 = msg ++ " and precede a typename "
         msg3 = msg2 ++ " at line " ++ show line ++ " column " ++ show col
-    in error msg3
+        msg4 = msg3 ++ " file: " ++ f
+    in error msg4
 
 -- variable or operator name
 parseOne (TokSymbol s a: tokens) = ([SName s a], tokens)
@@ -140,7 +142,7 @@ parseMany previous tokens =
 parseAll :: [Token] -> STree
 parseAll tokens =
   case parseMany [] tokens of
-    (ns, []) -> SList $ SName "seq" (TokInfo 0 0 "" "") : ns
+    (ns, []) -> SList $ SName "seq" (TokInfo 0 0 "" "" "") : ns
     _ -> error ("unexpected content: " ++ toString tokens)
 
  -- helper functions

@@ -12,13 +12,9 @@ boolBinExprFn :: (Bool -> Bool -> Bool) -> Expr -> Expr -> Expr
 boolBinExprFn 
     fn
     (GExpr (GetLit (BLit a i)))
-    (GExpr (GetLit (BLit b j))) =
+    (GExpr (GetLit (BLit b _))) =
     let val = a `fn` b
-        TokInfo {lineNumber = ta, colNumber = tc,
-                 tokDescription = td, tokContext = tcon} = joinTokInfo i j
-        ndescr = "line: " ++ show ta ++ " " ++ td
-        info = mkTokInfo ta tc ndescr tcon
-    in GExpr $ GetLit ( BLit val info)
+    in GExpr $ GetLit ( BLit val i)
 
 boolBinExprFn _ a b =
     let linea = debugExpr a

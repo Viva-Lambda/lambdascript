@@ -4,7 +4,7 @@ module Lexer.Lexer where
 import Data.Char
 import Text.Read
 import Data.List
-import Prelude    hiding ( span )
+import Prelude    hiding ( span, FilePath)
 
 {-
 List of tokens a subset of scheme from
@@ -19,46 +19,46 @@ token := <identifier> | <boolean> | <number>
 type LineNumber = Int
 type ColumnNumber = Int
 type TokenDescription = String
+type TokenContext = String
+type FilePath = String
 
 data TokenInfo = TokInfo {
-        lineNumber :: Int,
-        colNumber :: Int,
-        tokDescription :: String,
-        tokContext :: String
+        lineNumber :: LineNumber,
+        colNumber :: ColumnNumber,
+        tokDescription :: TokenDescription,
+        tokContext :: TokenContext,
+        tokFilePath :: FilePath
+    }
+
+
+mkTokInfo :: LineNumber -> ColumnNumber -> TokenDescription -> TokenContext -> FilePath -> TokenInfo
+mkTokInfo lnb cnb tokd tokc tokfname = TokInfo {
+        lineNumber = lnb, colNumber = cnb,
+        tokDescription = tokd, tokContext = tokc,
+        tokFilePath = tokfname
         }
 
-mkTokInfo :: Int -> Int -> String -> String -> TokenInfo
-mkTokInfo i j d c = TokInfo {lineNumber = i, colNumber = j,
-                             tokDescription = d, tokContext = c}
-
-joinTokInfo :: TokenInfo -> TokenInfo -> TokenInfo
-joinTokInfo tinfo1 tinfo2 =
-    let (TokInfo {lineNumber = a, colNumber = b,
-              tokDescription = _, tokContext = _}) = tinfo1
-        descr = "info created by joining tokens: " ++ show tinfo1 ++ "," ++ show tinfo2
-        contxt = "[" ++ debugTokenInfo tinfo1 ++ "," ++ debugTokenInfo tinfo2
-        contxt2 = contxt ++ "]"
-    in mkTokInfo a b descr contxt2
-            
-
 instance Show TokenInfo where
-    show (TokInfo ln col _ _) = "line: " ++ show ln ++ " " ++ "column: " ++ show col
+    show (TokInfo ln col _ _ f) =
+        "line: " ++ show ln ++ " " ++ "column: " ++ show col
 
 instance Eq TokenInfo where
-    (TokInfo ln col _ _) == (TokInfo l2 col2 _ _) = 
+    (TokInfo ln col _ _ _) == (TokInfo l2 col2 _ _ _) = 
         (ln == l2) && (col == col2)
 
 debugTokenInfo :: TokenInfo -> String
 debugTokenInfo TokInfo {lineNumber=ln, 
                         colNumber=col, 
                         tokDescription=descr,
-                        tokContext=cntxt} =
+                        tokContext=cntxt,
+                        tokFilePath=tpath} =
     let msg = "{\"token-information\": { " 
         msg2 = "\"postion\": {" ++ "\"line\": " ++ show ln ++ ", " 
         msg3 = "\"column\": " ++ show col ++ "},"
-        msg4 = "\"description\": \"" ++ show descr ++ "\""
-        msg5 = "\"context\": [" ++ show cntxt ++ "]"
-        msg6 = "}}"
+        msg4 = "\"description\": \"" ++ descr ++ "\""
+        msg5 = "\"context\": [" ++ cntxt ++ "]"
+        msg6 = "\"filepath\": \"" ++ tpath ++ "\""
+        msg7 = "}}"
     in msg ++ msg2 ++ msg3 ++ msg4 ++ msg5 ++ msg6
 
 data Token = TokLPar TokenInfo -- (
@@ -84,33 +84,36 @@ getTokenInfo (TokOp _ i) = i
 getTokenInfo (TokSep _ i) = i
 getTokenInfo (TokString _ i) = i
 getTokenInfo (TokNumber _ i) = i
-getTokenInfo (TokEnd) = mkTokInfo (-1) (-1) "end token" ""
+getTokenInfo (TokEnd) = mkTokInfo (-1) (-1) "end token" "" ""
 
+type LeftParChars = [String]
+type RightParChars = [String]
 
-tokenize :: ([String], [String]) -> String -> Int -> Int -> [Token]
+tokenize :: FilePath -> (LeftParChars, RightParChars) -> String -> Int -> Int -> [Token]
 
-tokenize (_,_) [] _ _ = []
+tokenize _ (_,_) [] _ _ = []
 
-tokenize (lefts, rights) (x:xs) line col
+tokenize fp (lefts, rights) (x:xs) line col
   -- x marks the beginning of a comment
-  | x == ';' = skipComments (lefts,rights) x xs line col
+  | x == ';' = skipComments fp (lefts,rights) x xs line col
   -- x is a paranthesis
-  | [x] `elem` lefts = TokLPar (mkTokInfo line col "left parenthesis" "") : tokenize (lefts, rights) xs line (col + 1)
-  | [x] `elem` rights = TokRPar (mkTokInfo line col "right parenthesis" "") : tokenize (lefts, rights) xs line (col + 1)
+  | [x] `elem` lefts = TokLPar (mkTokInfo line col "left parenthesis" "" fp) : tokenize fp (lefts, rights) xs line (col + 1)
+  | [x] `elem` rights = TokRPar (mkTokInfo line col "right parenthesis" "" fp) : tokenize fp (lefts, rights) xs line (col + 1)
   -- x is an operator +-*/
-  | x `elem` "-+*/&|~!<>=" = let info = mkTokInfo line col ("operator " ++ [x]) ""
+  | x `elem` "-+*/&|~!<>=" = let info = mkTokInfo line col ("operator " ++ [x]) "" fp
                                  tok = TokOp x info
-                             in tok: tokenize (lefts, rights) xs line (col +1)
+                             in tok: tokenize fp (lefts, rights) xs line (col +1)
   -- x is a symbol
-  | isAlpha x || x == ':' = symbols (lefts,rights) x xs line col
+  | isAlpha x || x == ':' = symbols fp (lefts,rights) x xs line col
   -- x is a start of string
-  | x == '"' = stringToken (lefts,rights) x xs line col
+  | x == '"' = stringToken fp (lefts,rights) x xs line col
   -- x token is number or not
-  | isDigit x = number (lefts,rights) x xs line col
-  | x == '\n' = tokenize (lefts, rights) xs (line + 1) 0 -- set column counter back to zero
-  | isSpace x = tokenize (lefts, rights) xs line (col + 1) -- skip space
-  | otherwise = let msg = show line ++ " column " ++ show col
-                in error $ [x] ++ " can not be tokenized at line " ++ msg
+  | isDigit x = number fp (lefts,rights) x xs line col
+  | x == '\n' = tokenize fp (lefts, rights) xs (line + 1) 0 -- set column counter back to zero
+  | isSpace x = tokenize fp (lefts, rights) xs line (col + 1) -- skip space
+  | otherwise = let msg = "line " ++ show line ++ " column " ++ show col
+                    msg2 = "file " ++ fp
+                in error $ [x] ++ " can not be tokenized at " ++ msg ++ msg2
 
 
 varNameStr :: String -> (String, String)
@@ -123,18 +126,18 @@ removeSpace (x:xs) line col
     | isSpace x = removeSpace xs line (col + 1)
     | otherwise = ((x:xs), line, col)
 
-symbols :: ([String], [String]) -> Char -> String -> Int -> Int -> [Token]
-symbols (l,r) s str line col
+symbols :: FilePath -> (LeftParChars, RightParChars) -> Char -> String -> Int -> Int -> [Token]
+symbols fp (l,r) s str line col
   | s == 't' && isPrefixOf "rue" str =
     let nstr = drop (length "rue") str
         lentrue = length "true"
-        info = mkTokInfo line col "boolean literal true" ""
-    in TokBool True info : tokenize (l,r) nstr line (col + lentrue)
+        info = mkTokInfo line col "boolean literal true" "" fp
+    in TokBool True info : tokenize fp (l,r) nstr line (col + lentrue)
   | s == 'f' && isPrefixOf "alse" str =
     let nstr = drop (length "alse") str
         lenfalse = length "false"
-        info = mkTokInfo line col "boolean literal false" ""
-    in TokBool False info : tokenize (l,r) nstr line (col + lenfalse) 
+        info = mkTokInfo line col "boolean literal false" "" fp
+    in TokBool False info : tokenize fp (l, r) nstr line (col + lenfalse) 
   | s == ':' = 
     let ((x:xs), nline, ncol) = removeSpace str line col
     in case isAlpha x of
@@ -144,33 +147,33 @@ symbols (l,r) s str line col
                          msg4 = msg ++ msg2 ++ msg3 ++ show ncol
                          msg5 = " but it is followed by " ++ [x]
                      in error $ msg4 ++ msg5
-            True -> let info = mkTokInfo line col ("symbol " ++ [x]) ""
-                    in TokSep s info : (symbols (l,r) x xs nline ncol)
+            True -> let info = mkTokInfo line col ("symbol " ++ [x]) "" fp
+                    in TokSep s info : (symbols fp (l,r) x xs nline ncol)
   | otherwise =
     let (symStr, st) = varNameStr (s:str)
         lensym = length symStr
-        info = mkTokInfo line col ("variable name symbol " ++ symStr) ""
-    in TokSymbol symStr info : tokenize (l,r) st line (col + lensym)
+        info = mkTokInfo line col ("variable name symbol " ++ symStr) "" fp
+    in TokSymbol symStr info : tokenize fp (l,r) st line (col + lensym)
 
 
 spanUpToQuote :: String -> (String, String)
 spanUpToQuote = span (/= '"')
 
-stringToken ::([String], [String]) -> Char -> String -> Int -> Int -> [Token]
-stringToken (l,r) s str line col =
+stringToken :: FilePath -> (LeftParChars, RightParChars) -> Char -> String -> Int -> Int -> [Token]
+stringToken fp (l,r) s str line col =
   let (inquote, q:qs) = spanUpToQuote str
   in
     if null (q:qs)
     then error "Strings must terminate with a quote \" "
     else
-      let sinquote = s:inquote
-          sinq = sinquote++[q]
+      let sinquote = s : inquote
+          sinq = sinquote ++ [q]
           lensinq = length sinq
-          info = mkTokInfo line col "string literal" ""
-      in TokString sinq info : tokenize (l,r) qs line (col + lensinq)
+          info = mkTokInfo line col "string literal" "" fp
+      in TokString sinq info : tokenize fp (l,r) qs line (col + lensinq)
 
-number :: ([String], [String]) -> Char -> String -> Int -> Int -> [Token]
-number (l,r) c cs line col =
+number :: FilePath -> (LeftParChars, RightParChars) -> Char -> String -> Int -> Int -> [Token]
+number fp (l,r) c cs line col =
   let (digs, dot:c_s) = span isDigit (c:cs)
   in
     case dot of
@@ -180,22 +183,22 @@ number (l,r) c cs line col =
                case (readMaybe flist :: Maybe Double) of
                  Just f -> let lenflst = length flist
                                nmlit = "numeric literal " ++ show f
-                               info = mkTokInfo line col nmlit ""
+                               info = mkTokInfo line col nmlit "" fp
                                tnb = TokNumber f info
-                           in tnb: tokenize (l,r) noDigit line (col + lenflst)
+                           in tnb: tokenize fp (l,r) noDigit line (col + lenflst)
                  Nothing -> error $ "expecting floating number in " ++ flist
-      _ -> let info = mkTokInfo line col ("numeric literal " ++ (c:digs)) ""
+      _ -> let info = mkTokInfo line col ("numeric literal " ++ (c:digs)) "" fp
                lendigs = length (c:digs)
                tnb = TokNumber (read (c: digs)) info
-           in tnb: tokenize (l,r) (dot:c_s) line (col + lendigs)
+           in tnb: tokenize fp (l,r) (dot:c_s) line (col + lendigs)
 
 spanUpToNewLine :: String -> (String, String)
 spanUpToNewLine = span (/= '\n')
 
-skipComments ::([String], [String]) -> Char -> String -> Int -> Int -> [Token]
-skipComments (l,r) _ str line _ =
+skipComments :: FilePath -> (LeftParChars, RightParChars) -> Char -> String -> Int -> Int -> [Token]
+skipComments fp (l,r) _ str line _ =
     let (_, _:qs) = spanUpToNewLine str
-    in tokenize (l,r) qs (line + 1) 0
+    in tokenize fp (l,r) qs (line + 1) 0
 -- Example program adapted from Norvig
 -- program = "(begin (define r T) (& pi (| r r)))"
 {-

@@ -62,8 +62,6 @@ sequence := ( seq/liste <expression>+ )
 -}
 
 
-
-
 data Expr = GExpr GetExpr
             | StmtExpr Statement
             | EndExpr
@@ -228,6 +226,13 @@ data ProcedureDefinition = DefineProc {
         arguments :: [Identifier],
         body :: Sequence
         }
+{-
+(do + (1 2) )
+(fn toplam: int
+    (sayi: int sayi2: int) 
+    (seq (do + (sayi 3) ) (do - (sayi1 sayi2) ) )
+)
+-}
 
 instance Show ProcedureDefinition where
     show DefineProc {procname=a, arguments=b, body=c} = 
@@ -241,8 +246,8 @@ instance Eq ProcedureDefinition where
             c3 = c == f
         in (c1 && c2) && c3
 
-
 data Assign = Assigner Identifier TypedExpr
+              -- TypeAssigner Identifier ProcedureCall ?
 
 instance Show Assign where
     show (Assigner aid e) = show aid ++ " " ++ show e

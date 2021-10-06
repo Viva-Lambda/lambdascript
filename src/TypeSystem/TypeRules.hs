@@ -2,42 +2,85 @@
 module TypeSystem.TypeRules where
 
 import Expression.Identifier
+import Lexer.Lexer
 import qualified Data.Map as DMap
+import Utils
+
+getTypeInfo :: Typed -> TokenInfo
+getTypeInfo (ValueTyper (ValueType _ (VName _ t))) = t
+getTypeInfo (FunctionTyper (FuncType {domain=_, codomain=NList (VName _ a) _})) = a
+getTypeInfo (ProductTyper (ProductType _ t) ) = t
+getTypeInfo (IntersectionTyper (IntersectionType (NList (ValueType _ (VName _ t)) _) ) ) = t
+getTypeInfo (UnionTyper (UnionType (NList (ValueType _ (VName _ t)) _) ) ) = t
+getTypeInfo (RecordTyper (RecordType _ _ t) ) = t
+
 
 data TypedValue = ValueType String TypeName
 
 instance Eq TypedValue where
-    (ValueType _ a) == (ValueType _ b) = a == b
+    (ValueType _ a ) == (ValueType _ b ) = a == b
 
-data TypeFunction = FuncType { 
-    domain :: [TypedValue], codomain :: [TypedValue]
+instance Show TypedValue where
+    show (ValueType a _) = show a
+
+data TypeFunction = FuncType {
+    domain :: [TypedValue], 
+    codomain :: (NonEmptyList TypeName)
     }
 
 instance Eq TypeFunction where
-    (FuncType {domain = a,
-               codomain = b}) == (FuncType {domain = c,
-                                            codomain = d}) =
-        (a == c) && (b == d)
+    a == b =
+        let (FuncType {domain = c, codomain = NList d e}) = a
+            (FuncType {domain = f, codomain = NList g h}) = b
+        in (c == f) && (d == g) && (e == h)
 
-data TypeProduct = ProductType [TypedValue]
+instance Show TypeFunction where
+    show (FuncType {domain = a, codomain = NList b c}) =
+        let msg = unwords (map show a)
+            msg2 = show b ++ " " ++ (unwords $! map show c)
+        in msg ++ msg2
+
+-- for function arguments
+data TypeProduct = ProductType [TypedValue] TokenInfo
 
 instance Eq TypeProduct where
-    (ProductType a) == (ProductType b) = a == b
+    (ProductType a _) == (ProductType b _) = a == b
 
-data TypeIntersection = IntersectionType [TypedValue]
+instance Show TypeProduct where
+    show (ProductType a _) = unwords $! (map show a)
+
+-- for function body
+data TypeIntersection = IntersectionType (NonEmptyList TypedValue)
 
 instance Eq TypeIntersection where
-    (IntersectionType a) == (IntersectionType b) = a == b
+    (IntersectionType (NList a b)) == (IntersectionType (NList c d)) = (a:b) == (c:d)
 
-data TypeUnion = UnionType [TypedValue]
+instance Show TypeIntersection where
+    show (IntersectionType (NList a b)) =
+        let msg = show a ++ " " ++ (unwords $! map show b)
+        in msg
+
+-- for combining types
+data TypeUnion = UnionType (NonEmptyList TypedValue)
 
 instance Eq TypeUnion where
-    (UnionType a) == (UnionType b) = a == b
+    (UnionType (NList a b)) == (UnionType (NList c d)) = (a:b) == (c:d)
 
-data TypeRecord = RecordType String [TypedValue]
+instance Show TypeUnion where
+    show (UnionType (NList a b)) =
+        let msg = show a ++ " " ++ (unwords $! map show b)
+        in msg
+
+-- for heterogeneous objects
+type TRecordMap = DMap.Map String TypeName
+
+data TypeRecord = RecordType String TRecordMap TokenInfo
 
 instance Eq TypeRecord where
-    (RecordType _ a) == (RecordType _ b) = a == b
+    (RecordType _ a _) == (RecordType _ b _) = a == b
+
+instance Show TypeRecord where
+    show (RecordType a b _) = a ++ " " ++ (show b)
 
 data Typed = ValueTyper TypedValue
             | FunctionTyper TypeFunction
@@ -64,3 +107,11 @@ instance Eq Typed where
 
     (RecordTyper v) ==  (RecordTyper a) = v == a
     (RecordTyper _) == _ = False
+
+instance Show Typed where
+    show (ValueTyper v) = show v
+    show (FunctionTyper v) = show v
+    show (ProductTyper v) = show v
+    show (IntersectionTyper v) = show v
+    show (UnionTyper v) = show v
+    show (RecordTyper v) = show v

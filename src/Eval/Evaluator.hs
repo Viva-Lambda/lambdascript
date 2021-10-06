@@ -320,7 +320,7 @@ let p4 = "(+ 2.0 (- 1.8 0.2))"
 evaluate (GExpr (GetVName (VName str j))) = lookUp str j
 
 -- as per scheme specification
-evaluate EndExpr = return $ GExpr (GetLit (StrLit "" $ mkTokInfo (-1) (-1) "" ""))
+evaluate EndExpr = return $ GExpr (GetLit (StrLit "" $ mkTokInfo (-1) (-1) "" "" ""))
 
 -- eval not matched
 evaluate a = error $ "the following expression is not matched: " ++ debugExpr a 

@@ -57,18 +57,19 @@ getKeywords fcontents =
 evalCArgs2 :: (String, String) -> IO ()
 evalCArgs2 (inpath, outpath) = do contents <- readFile inpath
                                   case outpath of
-                                    "stdout" -> peval contents
-                                    _ -> let expr = runEval contents
+                                    "stdout" -> peval inpath contents
+                                    _ -> let expr = runEval inpath contents
                                          in writeFile outpath (show expr)
 
 evalCArgs :: (String,String, String) -> IO ()
 evalCArgs (kwordsPath, inpath, outpath) = 
     do contents <- readFile inpath;
        kfcontents <- readFile kwordsPath;
-       let kws = getKeywords kfcontents in case outpath of
-                                                "stdout" -> peval2 contents kws
-                                                _ -> let expr = runEval2 contents kws
-                                                     in writeFile outpath (show expr)
+       let kws = getKeywords kfcontents
+       case outpath of
+              "stdout" -> peval2 inpath contents kws
+              _ -> let expr = runEval2 inpath contents kws
+                   in writeFile outpath (show expr)
 
 
 

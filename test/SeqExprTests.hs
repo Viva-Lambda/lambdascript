@@ -18,7 +18,7 @@ test1 :: Test
 test1 = TestCase (
     assertEqual
     ("for seq expression " ++ seqString)
-    True (exprCheck seqString (GExpr (GetLit (NumLit 5.0 (mkTokInfo 0 0 "" "")))))
+    True (exprCheck seqString (GExpr (GetLit (NumLit 5.0 (mkTokInfo 0 0 "" "" "")))))
     )
 
 seqString2 :: String
@@ -30,7 +30,7 @@ test2 :: Test
 test2 = TestCase (
     assertEqual
     ("for seq expression " ++ seqString2)
-    True (exprCheck seqString2 (GExpr (GetLit (NumLit 2.0 (mkTokInfo 0 0 "" "")))))
+    True (exprCheck seqString2 (GExpr (GetLit (NumLit 2.0 (mkTokInfo 0 0 "" "" "")))))
     )
 
 seqtests :: Test

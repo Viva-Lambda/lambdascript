@@ -20,7 +20,7 @@ exprCheck arg expected =
     let kws = defaultKWords
         lefts = kws DMap.! "("
         rights = kws DMap.! ")"
-        toks = tokenize (lefts, rights) arg 0 0
+        toks = tokenize "" (lefts, rights) arg 0 0
         pexps = expression (defaultKWords, emptyState, parseAll toks)
     in
         case pexps of
@@ -36,11 +36,11 @@ exprCheck arg expected =
             (PError e) -> error $ "Error: " ++ e
 
 
-runEval2 :: String -> Keywords -> Expr
-runEval2 toks kws =
+runEval2 :: String -> String -> Keywords -> Expr
+runEval2 fp toks kws =
     let lefts = kws DMap.! "("
         rights = kws DMap.! ")"
-        tp = tokenize (lefts, rights) toks 0 0
+        tp = tokenize fp (lefts, rights) toks 0 0
         stree = parseAll tp
         pexps = expression $ (kws, emptyState, stree)
     in
@@ -51,13 +51,13 @@ runEval2 toks kws =
             (PError e) -> error $ "Error: " ++ show e
 
 
-runEval :: String -> Expr
-runEval toks = runEval2 toks defaultKWords
+runEval :: String -> String -> Expr
+runEval fp toks = runEval2 fp toks defaultKWords
     
 
-peval :: String -> IO ()
-peval toks = print $ runEval toks
-peval2 :: String -> Keywords -> IO ()
-peval2 toks kws = print $ runEval2 toks kws
+peval :: String -> String -> IO ()
+peval fp toks = print $ runEval fp toks
+peval2 :: String -> String -> Keywords -> IO ()
+peval2 fp toks kws = print $ runEval2 fp toks kws
 -- (+ 1 2)
 -- (set var1 (+ 1 564))

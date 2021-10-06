@@ -44,7 +44,9 @@ library
       RuntimeEnv.FnBool
       RuntimeEnv.FnNumber
       TypeSystem.TypeChecker
+      TypeSystem.TypeIO
       TypeSystem.TypeRules
+      Utils
   other-modules:
       Paths_lambdascript
   hs-source-dirs:

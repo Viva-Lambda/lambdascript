@@ -10,13 +10,9 @@ import Lexer.Lexer
 
 -- numeric expression function
 numBinExprFn :: (Double -> Double -> Double) -> Expr -> Expr -> Expr
-numBinExprFn fn (GExpr (GetLit (NumLit a i))) (GExpr (GetLit (NumLit b j))) =
+numBinExprFn fn (GExpr (GetLit (NumLit a i))) (GExpr (GetLit (NumLit b _))) =
     let val = a `fn` b
-        TokInfo {lineNumber = ta, colNumber = tc,
-                 tokDescription = td, tokContext = tcon} = joinTokInfo i j
-        ndescr = "line: " ++ show ta ++ " " ++ td
-        info = mkTokInfo ta tc ndescr tcon
-    in GExpr $ GetLit (NumLit val info)
+    in GExpr $ GetLit (NumLit val i)
 
 numBinExprFn _ a b = 
     let linea = debugExpr a
@@ -26,13 +22,9 @@ numBinExprFn _ a b =
     in error msg2
 
 cmpBinExprFn :: (Double -> Double -> Bool) -> Expr -> Expr -> Expr
-cmpBinExprFn fn (GExpr (GetLit (NumLit a i))) (GExpr (GetLit (NumLit b j))) = 
+cmpBinExprFn fn (GExpr (GetLit (NumLit a i))) (GExpr (GetLit (NumLit b _))) = 
     let val = a `fn` b
-        TokInfo {lineNumber = ta, colNumber = tc,
-                 tokDescription = td, tokContext = tcon} = joinTokInfo i j
-        ndescr = "line: " ++ show ta ++ " " ++ td
-        info = mkTokInfo ta tc ndescr tcon
-    in GExpr $ GetLit (BLit val info)
+    in GExpr $ GetLit (BLit val i)
 
 cmpBinExprFn _ a b = 
     let linea = debugExpr a
