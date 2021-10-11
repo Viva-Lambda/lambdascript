@@ -44,6 +44,7 @@ library
       RuntimeEnv.FnBool
       RuntimeEnv.FnNumber
       TypeSystem.TypeChecker
+      TypeSystem.TypeError
       TypeSystem.TypeIO
       TypeSystem.TypeRules
       Utils
