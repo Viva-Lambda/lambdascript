@@ -28,3 +28,7 @@ andBool a b = boolBinExprFn (&&) a b
 
 orBool :: Expr -> Expr -> Expr
 orBool a b = boolBinExprFn (||) a b
+
+
+boolOps :: [String]
+boolOps = ["&", "|", "~"]

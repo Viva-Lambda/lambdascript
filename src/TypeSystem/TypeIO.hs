@@ -7,14 +7,14 @@ import Expression.Identifier
 import Utils
 
 -- typing etc
-import TypeSystem.TypeRules
+import TypeSystem.TypeExpression
 
-fromLiteral2ValueType :: Literal -> TypedValue
+fromLiteral2ValueType :: Literal -> TypeValue
 fromLiteral2ValueType (BLit a t) = ValueType (show a) (VName "bool" t)
 fromLiteral2ValueType (StrLit a t) = ValueType (show a) (VName "string" t)
 fromLiteral2ValueType (NumLit a t) = ValueType (show a) (VName "double" t)
 
-fromIdentifier2ValueType :: Identifier -> TypedValue
+fromIdentifier2ValueType :: Identifier -> TypeValue
 fromIdentifier2ValueType (IdExpr (VName s t) tyName _) = ValueType s tyName
 
 fromProcDef2FnType :: ProcedureDefinition -> TypeFunction

@@ -17,6 +17,9 @@ import Parser.ParsingState
 import Parser.ParseResult
 import Parser.ParseUtils hiding (Input)
 
+-- runtime environment required for accessing operators
+import RuntimeEnv.StdEnv
+
 -- import Text.ParserCombinators.ReadP
 import Control.Applicative
 import qualified Data.Map as DMap
@@ -30,39 +33,96 @@ instance Functor ParseResult where
 
 
 type Input = (Keywords, ParsingState, STree)
+type InputNoState  = (Keywords, STree)
 
 -- top down recursive descent
+
+noSideExpression :: InputNoState -> StatelessParseResult Expr
+
+noSideExpression (k, (SName a b)) =
+    case noSideGetExpression (k, (SName a b)) of
+        (StatelessPResult (k2, gexp)) -> StatelessPResult (k2, GExpr gexp)
+        (StatelessPError err) ->
+            let serr = show (OtherError (err ++ ":in expression:"))
+            in StatelessPError serr
+
+noSideExpression (k, (SLit a)) =
+    case noSideGetExpression (k, (SLit a)) of
+        (StatelessPResult (k2, gexp)) -> StatelessPResult (k2, GExpr $ gexp)
+        (StatelessPError err) -> 
+            StatelessPError $ show (OtherError (err ++ ":in expression:"))
+
+noSideExpression (k, (SList a)) =
+    case noSideStatement (k, (SList a)) of
+        (StatelessPResult (k2, stmt)) ->
+            StatelessPResult (k2, StmtExpr $ stmt)
+        (StatelessPError err) ->
+            StatelessPError $ show (OtherError (err ++ ":in expression:"))
+
+noSideExpression (_, v) = StatelessPError $ show (MatchError v "expression")
 
 expression :: Input -> ParseResult Expr
 
 expression (k, p, (SName a b)) =
-    case getExpression (k,p,(SName a b)) of
-        (PResult (k2, p2, gexp)) -> PResult (k2, p2, GExpr gexp)
-        (PError err) -> PError (err ++ ":in expression:")
+    case noSideExpression (k, (SName a b)) of
+        (StatelessPError err) -> PError err
+        (StatelessPResult (k2, a)) -> PResult (k2, p, a)
 
 expression (k, p, (SLit a)) =
-    case getExpression (k, p, (SLit a)) of
-        (PResult (k2, p2, gexp)) -> PResult (k2, p2, GExpr $ gexp)
-        (PError err) -> PError (err ++ ":in expression:")
+    case noSideExpression (k, (SLit a)) of
+        (StatelessPError err) -> PError err
+        (StatelessPResult (k2, b)) -> PResult (k2, p, b)
 
 expression (k, p, (SList a)) =
-    case statement (k, p, (SList a)) of
-        (PResult (k2, p2, stmt)) -> PResult (k2, p2, StmtExpr $ stmt)
-        (PError err) -> PError (err ++ ":in expression:")
+    case noSideExpression (k, (SList a)) of
+        (StatelessPError err) -> PError err
+        (StatelessPResult (k2, b)) -> PResult (k2, p, b)
 
-expression (_, _, v) = PError $ parseError v "expression"
+expression (k, p, v) =
+    case noSideExpression (k, v) of
+        (StatelessPError err) -> PError err
+        (StatelessPResult (k2, b)) -> PResult (k2, p, b)
+
 
 -- get expression
+noSideGetExpression :: InputNoState -> StatelessParseResult GetExpr
+
+noSideGetExpression (k, (SName a b)) =
+    StatelessPResult (k, GetVName $ VName a b)
+
+noSideGetExpression (k, (SLit (BoolLit a b))) =
+    StatelessPResult (k, GetLit $ BLit a b)
+
+noSideGetExpression (k, (SLit (StringLit a b))) =
+    StatelessPResult (k, GetLit $ StrLit a b )
+
+noSideGetExpression (k, (SLit (NumericLit a b))) =
+    StatelessPResult (k, GetLit $ NumLit a b )
+
+noSideGetExpression (_, v) = StatelessPError $ show (MatchError v "get expression")
+
 getExpression :: Input -> ParseResult GetExpr
-getExpression (k, p, (SName a b)) = PResult (k,p,GetVName $ VName a b)
-getExpression (k, p, (SLit (BoolLit a b))) = PResult (k, p, GetLit $ BLit a b)
-getExpression (k, p, (SLit (StringLit a b))) = PResult (k, p, GetLit $ StrLit a b )
-getExpression (k, p, (SLit (NumericLit a b))) = PResult (k, p, GetLit $ NumLit a b )
-getExpression (_, _, v) = PError $ parseError v "get expression"
+
+getExpression (k, p, (SName a b)) =
+    case noSideGetExpression (k, (SName a b)) of
+        (StatelessPError err) -> PError err
+        (StatelessPResult (k2, c)) -> PResult (k2, p, c)
+
+getExpression (k, p, (SLit a)) =
+    case noSideGetExpression (k, (SLit a)) of
+        (StatelessPError err) -> PError err
+        (StatelessPResult (k2, c)) -> PResult (k2, p, c)
+
+getExpression (k, p, a) =
+    case noSideGetExpression (k, a) of
+        (StatelessPError err) -> PError err
+        (StatelessPResult (k2, c)) -> PResult (k2, p, c)
 
 -- statement
-statement :: Input -> ParseResult Statement
-statement (k, p, SList (SName a b: c)) =
+
+noSideStatement :: InputNoState -> StatelessParseResult Statement
+
+noSideStatement (k, SList (SName a b: c)) =
     let isIfWord = iskey "if" a k -- if condition
         isLoopWord = iskey "loop" a k -- loop
         isFnWord = iskey "fn" a k -- function definition
@@ -72,73 +132,148 @@ statement (k, p, SList (SName a b: c)) =
         toks = SList (SName a b: c)
         lnb = " :in statement at line " ++ show ( lineNumber b ) ++ " : "
     in if isIfWord
-       then case conditional (k, p, toks) of 
-                (PResult (k2, p2, cstmt)) -> PResult (k2, p2, CondStmt cstmt)
-                (PError e) -> PError (e ++ lnb)
+       then case noSideConditional (k, toks) of
+                (StatelessPResult (k2, cstmt)) ->
+                    StatelessPResult (k2, CondStmt cstmt)
+                (StatelessPError e) ->
+                    StatelessPError $ show (OtherError (e ++ lnb))
        else if isLoopWord
-            then case loop (k, p, toks) of
-                    (PResult (k2, p2, cstmt)) -> PResult (k2, p2, LoopStmt cstmt)
-                    (PError e) -> PError (e ++ lnb)
+            then case noSideLoop (k, toks) of
+                    (StatelessPResult (k2, cstmt)) ->
+                        StatelessPResult (k2, LoopStmt cstmt)
+                    (StatelessPError e) -> 
+                        StatelessPError $ show (OtherError (e ++ lnb) )
             else if isFnWord
-                 then case procedureDefinition (k, p, toks) of
-                        (PResult (k2, p2, cstmt)) -> PResult (k2, p2, ProcDefStmt cstmt)
-                        (PError e) -> PError (e ++ lnb)
+                 then case noSideProcedureDefinition (k, toks) of
+                        (StatelessPResult (k2, cstmt)) ->
+                            StatelessPResult (k2, ProcDefStmt cstmt)
+                        (StatelessPError e) ->
+                            StatelessPError $ show (OtherError (e ++ lnb))
                  else if isPCallWord
-                      then case procedureCall (k, p, toks) of
-                                (PResult (k2, p2, cstmt)) -> PResult (k2, p2, CallStmt cstmt)
-                                (PError e) -> PError (e ++ lnb)
+                      then case noSideProcedureCall (k, toks) of
+                                (StatelessPResult (k2, cstmt)) ->
+                                    StatelessPResult (k2, CallStmt cstmt)
+                                (StatelessPError e) ->
+                                    StatelessPError $ show (OtherError (e ++ lnb))
                       else if isDefWord
-                           then case assignment (k, p, toks) of
-                                    (PResult (k2, p2, cstmt)) ->
-                                        PResult (k2, p2, AssignStmt cstmt)
-                                    (PError e) -> PError (e ++ lnb)
+                           then case noSideAssignment (k, toks) of
+                                    (StatelessPResult (k2, cstmt)) ->
+                                        StatelessPResult (k2, AssignStmt cstmt)
+                                    (StatelessPError e) -> 
+                                        StatelessPError $ show (OtherError (e ++ lnb))
                            else if isSeqWord
-                                then case sequence (k, p, toks) of
-                                        (PResult (k2, p2, cstmt)) ->
-                                            PResult (k2, p2, SeqStmt cstmt)
-                                        (PError e) -> PError (e ++ lnb)
-                                else PError lnb
+                                then case noSideSequence (k, toks) of
+                                        (StatelessPResult (k2, cstmt)) ->
+                                            StatelessPResult (k2, SeqStmt cstmt)
+                                        (StatelessPError e) -> 
+                                            StatelessPError $ show (OtherError (e ++ lnb))
+                                else StatelessPError $ show (OtherError lnb)
 
-statement (_, _, a) = PError $ parseError a "statement"
+noSideStatement (_, _, a) = StatelessPError $ show (MatchError a "statement")
 
-conditional :: Input -> ParseResult Conditional
-conditional (k, p, (SList [SName _ b, SList c, SList (SName d e:f), SList (SName g h:m)])) =
+statement :: Input -> ParseResult Statement
+statement (k, p, SList (SName a b: c)) =
+    case noSideStatement (k, SList (SName a b: c)) of
+        (StatelessPResult (k2, d)) -> PResult (k2, p, d)
+        (StatelessPError e) -> PError e
+
+statement (k, p, a) =
+    case noSideStatement (k, a) of
+        (StatelessPResult (k2, d)) -> PResult (k2, p, d)
+        (StatelessPError e) -> PError e
+
+-- condition
+noSideConditional :: InputNoState -> StatelessParseResult Conditional
+noSideConditional 
+    (k, 
+     (SList [SName _ b, SList c, SList (SName d e:f), SList (SName g h:m)])
+    ) =
     let testToks = SList c
         consToks = SList (SName d e:f)
         alterToks = SList (SName g h:m)
         lnb = " :in conditional at line " ++ show (lineNumber b) ++ " : "
-    in case conditionTest (k, p, testToks) of
-            (PResult (k2, p2, ct)) ->
-                case cconsequent (k2, p2, consToks) of
-                    (PResult (k3, p3, conseq)) ->
-                        case calternate (k3, p3, alterToks) of
-                            (PResult (k4, p4, alter)) ->
-                                PResult (k4, p4, Cond {ctest = ct,
-                                                       consequent = conseq,
-                                                       alternate = alter})
-                            (PError n) -> PError (n ++ lnb)
-                    (PError n) -> PError (n ++ lnb)
-            (PError n) -> PError (n ++ lnb)
+    in case noSideConditionTest (k, testToks) of
+            (StatelessPResult (k2, ct)) ->
+                case noSideCConsequent (k2, consToks) of
+                    (StatelessPResult (k3, conseq)) ->
+                        case noSideCAlternate (k3, alterToks) of
+                            (StatelessPResult (k4, alter)) ->
+                                StatelessPResult (k4, Cond {
+                                    ctest = ct,
+                                    consequent = conseq,
+                                    alternate = alter})
+                            (StatelessPError n) ->
+                                StatelessPError $ show (OtherError (n ++ lnb))
+                    (StatelessPError n) ->
+                        StatelessPError $ show (OtherError (n ++ lnb))
+            (StatelessPError n) ->
+                StatelessPError $ show (OtherError (n ++ lnb))
 
-conditional (_, _, a) = PError $ parseError a "conditional"
+noSideConditional (_, _, a) = StatelessPError $ show (MatchError a "conditional")
+
+
+conditional :: Input -> ParseResult Conditional
+conditional (k, p, (SList [SName _ b, SList c, SList (SName d e:f), SList (SName g h:m)])) =
+    let a = SList [SName _ b, SList c, SList (SName d e:f), SList (SName g h:m)]
+    in case noSideConditional (k, a) of
+            (StatelessPResult (k2, b)) -> PResult (k2, p, b)
+            (StatelessPError err) -> PError err
+
+conditional (k, p, a) =
+    case noSideConditional (k, a) of
+        (StatelessPResult (k2, b)) -> PResult (k2, p, b)
+        (StatelessPError err) -> PError err
+
 -- condition test
+noSideConditionTest :: InputNoState -> StatelessParseResult ConditionTest
+
+noSideConditionTest (k, SList [SLit (BoolLit a b)]) =
+    StatelessPResult (k, CTestLit $ BLit a b)
+
+noSideConditionTest (k, SList [SLit (StringLit a b)]) =
+    StatelessPResult (k, CTestLit $ StrLit a b)
+
+noSideConditionTest (k, SList [SLit (NumericLit a b)]) =
+    StatelessPResult (k, CTestLit $ NumLit a b)
+
+noSideConditionTest (k, SList [SName a b]) =
+    StatelessPResult (k, CTestVar $ VName a b)
+
+noSideConditionTest (k, SList (SName a b: c)) =
+    let procCall = noSideProcedureCall (k, SList (SName a b: c))
+    in case procCall of
+            (StatelessPResult (k2, pc)) ->
+                StatelessPResult (k2, CTestProc pc)
+            (StatelessPError e) -> StatelessPError $ show (OtherError e)
+
+noSideConditionTest (_,_,_) = 
+    StatelessPError $ show (OtherError "condition test not matched")
+
+
 conditionTest :: Input -> ParseResult ConditionTest
 
 -- condition test literal
-conditionTest (k,p, SList [SLit (BoolLit a b)]) = PResult (k,p, CTestLit $ BLit a b)
-conditionTest (k,p, SList [SLit (StringLit a b)]) = PResult (k, p, CTestLit $ StrLit a b)
-conditionTest (k,p, SList [SLit (NumericLit a b)]) = PResult (k, p, CTestLit $ NumLit a b)
+conditionTest (k, p, SList [SLit a]) =
+    case noSideConditionTest (k, SList [SLit a]) of
+        (StatelessPResult (k2, pc)) -> PResult (k2, p, pc)
+        (StatelessPError e) -> PError e
+
 
 -- condition test variable name
-conditionTest (k,p, SList [SName a b]) = PResult (k, p, CTestVar $ VName a b)
+conditionTest (k,p, SList [SName a b]) =
+    case noSideConditionTest (k, SList [SName a b]) of
+        (StatelessPResult (k2, pc)) -> PResult (k2, p, pc)
+        (StatelessPError e) -> PError e
+
+conditionTest (k, p, SList (SName a b: c)) =
+    case noSideConditionTest (k, SList (SName a b: c)) of
+        (StatelessPResult (k2, pc)) -> PResult (k2, p, pc)
+        (StatelessPError e) -> PError e
+
 
 -- condition test procedural call
-conditionTest (k,p, SList (SName a b: c)) =
-    let procCall = procedureCall (k, p, SList (SName a b: c))
-    in case procCall of
-            (PResult (k2, p2, pc)) -> PResult (k2, p2, CTestProc pc)
-            (PError e) -> PError e
-conditionTest (_,_,_) = PError "condition test not matched"
+
+conditionTest (_,_,_) = PError $ show (OtherError "condition test not matched")
 
 -- consequent / alternate
 cconseqAltern :: String -> String -> Input -> ParseResult Sequence
@@ -148,10 +283,11 @@ cconseqAltern key msg (k, p, SList [SName a b, SList (SName c d:e)]) =
     in if isThenWord
        then case sequence (k, p, SList (SName c d: e)) of
                 (PResult s) -> PResult s
-                (PError f) -> PError (f ++ lnb)
-       else PError lnb
+                (PError f) -> PError $ show (OtherError (f ++ lnb) )
+       else PError $ show (OtherError lnb)
 
-cconseqAltern _ _ (_, _, _) = PError "can not match consequent or alternate"
+cconseqAltern _ _ (_, _, _) = 
+    PError $ show (OtherError "can not match consequent or alternate")
 
 
 cconsequent :: Input -> ParseResult Sequence
@@ -159,14 +295,14 @@ cconsequent (k, p, SList [SName a b, SList (SName c d:e)]) =
     let toks = (k, p, SList [SName a b, SList (SName c d:e)])
     in cconseqAltern "then" " :in consequent line " toks
 
-cconsequent (_, _, a) = PError $ parseError a "consequent"
+cconsequent (_, _, a) = PError $ show (MatchError a "consequent")
 -- alternate
 calternate :: Input -> ParseResult Sequence
 calternate (k, p, SList [SName a b, SList (SName c d:e)]) =
     let toks = (k, p, SList [SName a b, SList (SName c d:e)])
     in cconseqAltern "else" " :in alternate line " toks
 
-calternate (_, _, a) = PError $ parseError a "alternate"
+calternate (_, _, a) = PError $ show (MatchError a "alternate")
 -- loop
 loop :: Input -> ParseResult Loop
 loop (k, p, (SList [SName _ b, SList c, SList (SName d e:f)])) =
@@ -179,10 +315,10 @@ loop (k, p, (SList [SName _ b, SList c, SList (SName d e:f)])) =
                     (PResult (k3, p3, conseq)) ->
                         PResult (k3, p3, Looper {ltest = ct,
                                                  lconsequent = conseq})
-                    (PError m) -> PError (m ++ lnb)
-            (PError m) -> PError (m ++ lnb)
+                    (PError m) -> PError $ show (OtherError (m ++ lnb))
+            (PError m) -> PError $ show (OtherError (m ++ lnb))
 
-loop (_, _, a) = PError $ parseError a "loop"
+loop (_, _, a) = PError $ show (MatchError a "loop")
 -- procedural definition
 procedureDefinition :: Input -> ParseResult ProcedureDefinition
 procedureDefinition (k, p, SList [SName _ b, SVar c d e, SList f, SList (SName g h :j)]) =
@@ -190,28 +326,30 @@ procedureDefinition (k, p, SList [SName _ b, SVar c d e, SList f, SList (SName g
         idToks = SVar c d e
         argToks = SList f
         bToks = SList (SName g h :j)
-    in case identifier (k, p, idToks) of
+    in case noSideidentifier (k, p, idToks) of
             (PResult (k2, p2, ident)) ->
                 case fargs (k2, p2, argToks) of
                     (PResult (k3, p3, farg)) ->
                         case fbody (k3, p3, bToks) of
                             (PResult (k4, p4, fb)) ->
-                                PResult (k4, p4,
-                                    DefineProc {
+                                let pdef = DefineProc {
                                         procname = ident,
                                         arguments = farg,
                                         body = fb
                                         }
-                                    )
-                            (PError m) -> PError (m ++ lnb ++ " body ")
-                    (PError m) -> PError (m ++ lnb ++ " arguments ")
-            (PError m) -> PError (m ++ lnb ++ " identifier ")
+                                    np = addProcDef2PState pdef p4
+                                    -- add procedure definition to
+                                    -- parsing state
+                                in PResult (k4, np, pdef)
+                            (PError m) -> PError $ show (OtherError (m ++ lnb ++ " body "))
+                    (PError m) -> PError $ show (OtherError (m ++ lnb ++ " arguments "))
+            (PError m) -> PError $ show (OtherError (m ++ lnb ++ " identifier "))
 
-procedureDefinition (_, _, a) = PError $ parseError a "procedure definition"
+procedureDefinition (_, _, a) = PError $ show (MatchError a "procedure definition")
 -- arguments
 parseIdentifier :: STree -> Identifier
 parseIdentifier (SVar a b c) = IdExpr (VName a c) (VName b c) (lineNumber c)
-parseIdentifier a = error $ parseError a "identifier"
+parseIdentifier a = error $ show (MatchError a "identifier")
 
 isId :: STree -> Bool
 isId (SVar _ _ _) = True
@@ -226,16 +364,16 @@ fargs (k, p, (SList a)) =
     let allIds = isIds a
     in if allIds
        then PResult (k, p, map parseIdentifier a)
-       else PError "arguments are not made up of identifiers"
+       else PError $ show (OtherError "arguments are not made up of identifiers")
 
-fargs (_, _, _) = PError "function arguments must be provided as a list"
+fargs (_, _, _) = PError $ show (OtherError "function arguments must be provided as a list")
 
 -- function body
 fbody :: Input -> ParseResult Sequence
 fbody i =
     case sequence i of
         (PResult j) -> PResult j
-        (PError e) -> PError (e ++ " function body ")
+        (PError e) -> PError $ show (OtherError (e ++ " function body "))
 
 -- assignment
 
@@ -245,33 +383,70 @@ assignment (k,p, (SList [SName _ b, SVar c d e, f])) =
         lnb = " :in assignment line " ++ show (lineNumber b) ++ " : "
     in case typedExpression (k, p, f) of
             (PResult (k2, p2, expr)) -> PResult (k2, p2, Assigner ids expr)
-            (PError m) -> PError (m ++ lnb)
+            (PError m) -> PError $ show (OtherError (m ++ lnb) )
 
-assignment (_, _, a) = PError $ parseError a "assignment"
+assignment (_, _, a) = PError $ show (MatchError a "assignment")
 -- identifier
 
 identifier :: Input -> ParseResult Identifier
-identifier (k, p, SVar a b c) = PResult (k, p, parseIdentifier (SVar a b c))
-identifier (_, _, v) = PError $ parseError v "identifier"
+identifier (k, p, SVar a b c) = identifierParse True (k, p, SVar a b c)
+identifier (_, _, v) = PError $ show (MatchError v "identifier")
+
+noSideidentifier :: Input -> ParseResult Identifier
+noSideidentifier (k, p, SVar a b c) = identifierParse True (k, p, SVar a b c)
+
+identifierParse :: Bool -> Input -> ParseResult Identifier
+identifierParse hasSideEffect (k, p, SVar a b c) =
+    let idf = parseIdentifier (SVar a b c)
+    in if hasSideEffect
+       then PResult (k, addIde2PState idf p, idf)
+       else PResult (k, p, idf)
+
+
 
 -- procedure call
 procedureCall :: Input -> ParseResult ProcedureCall
 procedureCall (k, p, SList [SName _ b, SName c d, SList e]) =
     let lnb = " :in procedure call line " ++ show (lineNumber b) ++ " : "
-    in case operator (k,p,(SName c d)) of
+    in case noSideOperator (k,p,(SName c d)) of
             (PResult (k2, p2, oper)) -> 
                 case operand (k2, p2, (SList e)) of
                     (PResult (k3, p3, opera)) ->
                         PResult (k3, p3, Proc {op = oper, args = opera})
-                    (PError m) -> PError (m ++ lnb)
-            (PError m) -> PError (m ++ lnb)
+                    (PError m) -> PError $ show (OtherError (m ++ lnb))
+            (PError m) -> PError $ show (OtherError (m ++ lnb))
 
-procedureCall (_, _, a) = PError $ parseError a "procedure call"
+procedureCall (_, _, a) = PError $ show (MatchError a "procedure call")
+
+procedureCallParse :: Bool -> Input -> ParseResult ProcedureCall
+procedureCallParse hasSideEffect (k, p, SList [SName _ b, SName c d, SList e]) =
+    let lnb = " :in procedure call line " ++ show (lineNumber b) ++ " : "
+        -- prs = --
+    in case noSideOperator (k,p,(SName c d)) of
+            (PResult (k2, p2, oper)) -> 
+                case operand (k2, p2, (SList e)) of
+                    (PResult (k3, p3, opera)) ->
+                        PResult (k3, p3, Proc {op = oper, args = opera})
+                    (PError m) -> PError $ show (OtherError (m ++ lnb) )
+            (PError m) -> PError $ show (OtherError (m ++ lnb))
+
 
 -- operator
-operator :: Input -> ParseResult Operator
-operator (k, p, SName c d) = PResult (k,p, OpName (VName c d))
-operator (_, _, _) = PError "does not match to operator"
+
+noSideOperator :: Input -> ParseResult Operator
+noSideOperator (k, p, SName c d) = PResult (k,p, OpName (VName c d))
+noSideOperator (_, _, _) = PError $ show (OtherError "does not match to operator")
+
+-- noSideOperator (_, _, _) = PError "does not match to operator"
+
+operatorCheck :: Operator -> ParsingState -> Bool
+operatorCheck (OpName (VName c _)) p =
+    if c `elem` stdOps
+    then True
+    else let hasOperator = lookUpPState c p
+         in case hasOperator of
+                Nothing -> True
+                Just _ -> False
 
 -- operand
 operand :: Input -> ParseResult Operand
@@ -288,7 +463,7 @@ isTypeExprAll (k, s, (b:bs)) = if isTypeExpr (k, s, b)
                                else False
 
 typedExpression :: Input -> ParseResult TypedExpr
-typedExpression (k, p, a) = 
+typedExpression (k, p, a) =
     case variableName (k, p, a) of
         (PResult (k2, p2, tid)) -> PResult (k2, p2, TypedId tid)
         (PError _) ->
@@ -297,22 +472,27 @@ typedExpression (k, p, a) =
                 (PError _) ->
                     case procedureCall (k, p, a) of
                         (PResult (k2, p2, tc)) -> PResult (k2, p2, TypedCall tc)
-                        (PError e) -> 
-                            PError $ 
-                                parseError a ("procedural call in typed expression " ++ e) 
+                        (PError e) ->
+                            let err = MatchError a ("procedural call in typed expression " ++ e)
+                            in PError $ show err
                 (PError e) ->
-                    PError $ parseError a ("literal in typed expression " ++ e)
+                    PError $ show (MatchError a ("literal in typed expression " ++ e))
         (PError e) ->
-            PError $ parseError a ("identifier in typed expression " ++ e)
+            PError $ show (MatchError a ("identifier in typed expression " ++ e))
 
 operand (k, p, SList a) =
     let allExpr = isTypeExprAll (k, p, a)
         linput = (k, p, SList a)
     in if allExpr
        then PResult (k,p, OprExpr $ mapReducePResult typedExpression linput)
-       else PError "operand contains tokens that can not be parsed as typed expressions"
+       else let msg = "operand contains tokens that can not be parsed "
+                msg1 = msg ++ "as typed expressions"
+            in PError $ show (OtherError msg1)
 
-operand (_, _,  a) = PError $ parseError a "operand"
+operand (_, _,  a) = PError $ show (MatchError a "operand" )
+
+operandCheck :: Operand -> ParsingState -> Bool
+operandCheck o p = False --
 
 -- sequence
 isExpr :: Input -> Bool
@@ -326,7 +506,7 @@ isExprAll (k, p, (e:es)) = (isExpr (k,p, e)) && (isExprAll (k, p, es))
 
 expressions :: Input -> [ParseResult Expr]
 expressions a = mapPResult expression a
-expressions (_,_, a) = error $ parseError a "multiple expressions"
+expressions (_,_, a) = error $ show (MatchError a "multiple expressions")
 
 sequence :: Input -> ParseResult Sequence
 sequence (k, p, SList (SName _ b:e)) =
@@ -337,23 +517,26 @@ sequence (k, p, SList (SName _ b:e)) =
        else let (_, unParsable) = DList.partition isParsed (expressions exprInput)
                 msg = "sequence contains tokens that can not be parsed as expression"
                 msg2 =  msg ++ " " ++ (show $ last unParsable) ++ " " ++ show b
-            in PError msg2
+            in PError $ show (OtherError msg2)
 
-sequence (_, _, a) = PError $ parseError a "sequence"
+sequence (_, _, a) = PError $ show (MatchError a "sequence")
 
 -- literal and identifier name
 literal :: Input -> ParseResult Literal
-literal (k, p, SLit a) = case a of
-                            (StringLit b c) -> PResult (k,p, StrLit b c)
-                            (BoolLit b c) -> PResult (k,p, BLit b c)
-                            (NumericLit b c) -> PResult (k,p, NumLit b c)
+literal (k, p, SLit a) =
+    let litval = case a of
+                    (StringLit b c) -> StrLit b c
+                    (BoolLit b c) ->  BLit b c
+                    (NumericLit b c) -> NumLit b c
+        np = addLit2PState litval p
+    in PResult (k, np, litval)
 
-literal (_, _, a) = PError $ parseError a "literal"
+literal (_, _, a) = PError $ show (MatchError a "literal")
 
 -- variable name
 variableName :: Input -> ParseResult VarName
 variableName (k, p, SName a b) = PResult (k, p, VName a b)
-variableName (_, _, a) = PError $ parseError a "variable name"
+variableName (_, _, a) = PError $ show (MatchError a "variable name")
 
 typeName :: Input -> ParseResult TypeName
 typeName = variableName

@@ -51,3 +51,6 @@ divide2Number a b = numBinExprFn (/) a b
 
 power2Number :: Expr -> Expr -> Expr
 power2Number a b = numBinExprFn (**) a b
+
+numericOps :: [String]
+numericOps = ["+", "-", "*", "/", "^"]

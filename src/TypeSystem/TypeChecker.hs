@@ -1,7 +1,7 @@
 -- module for dealing with type checking
 module TypeSystem.TypeChecker where
 
-import TypeSystem.TypeRules
+import TypeSystem.TypeExpression
 import Expression.Identifier
 
 typeListEquivalence :: Eq a => [a] -> [a] -> Bool

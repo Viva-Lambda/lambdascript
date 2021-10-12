@@ -1,7 +1,7 @@
 -- parsing state module
 module TypeSystem.TypeError where
 
-import TypeSystem.TypeRules
+import TypeSystem.TypeExpression
 import Expression.Identifier
 
 data TypeError = NameAlreadyBound String TypeName Typed

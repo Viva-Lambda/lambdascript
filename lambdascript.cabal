@@ -43,10 +43,11 @@ library
       Parser.StatefulParser
       RuntimeEnv.FnBool
       RuntimeEnv.FnNumber
+      RuntimeEnv.StdEnv
       TypeSystem.TypeChecker
       TypeSystem.TypeError
+      TypeSystem.TypeExpression
       TypeSystem.TypeIO
-      TypeSystem.TypeRules
       Utils
   other-modules:
       Paths_lambdascript

@@ -1,30 +1,23 @@
 -- typing rules for the type system
-module TypeSystem.TypeRules where
+module TypeSystem.TypeExpression where
 
 import Expression.Identifier
 import Lexer.Lexer
 import qualified Data.Map as DMap
 import Utils
 
-getTypeInfo :: Typed -> TokenInfo
-getTypeInfo (ValueTyper (ValueType _ (VName _ t))) = t
-getTypeInfo (FunctionTyper (FuncType {domain=_, codomain=NList (VName _ a) _})) = a
-getTypeInfo (ProductTyper (ProductType _ t) ) = t
-getTypeInfo (IntersectionTyper (IntersectionType (NList (ValueType _ (VName _ t)) _) ) ) = t
-getTypeInfo (UnionTyper (UnionType (NList (ValueType _ (VName _ t)) _) ) ) = t
-getTypeInfo (RecordTyper (RecordType _ _ t) ) = t
 
 
-data TypedValue = ValueType String TypeName
+data TypeValue = ValueType String TypeName
 
-instance Eq TypedValue where
+instance Eq TypeValue where
     (ValueType _ a ) == (ValueType _ b ) = a == b
 
-instance Show TypedValue where
+instance Show TypeValue where
     show (ValueType a _) = show a
 
 data TypeFunction = FuncType {
-    domain :: [TypedValue], 
+    domain :: [TypeValue], 
     codomain :: (NonEmptyList TypeName)
     }
 
@@ -41,7 +34,7 @@ instance Show TypeFunction where
         in msg ++ msg2
 
 -- for function arguments
-data TypeProduct = ProductType [TypedValue] TokenInfo
+data TypeProduct = ProductType [TypeValue] TokenInfo
 
 instance Eq TypeProduct where
     (ProductType a _) == (ProductType b _) = a == b
@@ -50,7 +43,7 @@ instance Show TypeProduct where
     show (ProductType a _) = unwords $! (map show a)
 
 -- for function body
-data TypeIntersection = IntersectionType (NonEmptyList TypedValue)
+data TypeIntersection = IntersectionType (NonEmptyList TypeValue)
 
 instance Eq TypeIntersection where
     (IntersectionType (NList a b)) == (IntersectionType (NList c d)) = (a:b) == (c:d)
@@ -61,7 +54,7 @@ instance Show TypeIntersection where
         in msg
 
 -- for combining types
-data TypeUnion = UnionType (NonEmptyList TypedValue)
+data TypeUnion = UnionType (NonEmptyList TypeValue)
 
 instance Eq TypeUnion where
     (UnionType (NList a b)) == (UnionType (NList c d)) = (a:b) == (c:d)
@@ -82,7 +75,7 @@ instance Eq TypeRecord where
 instance Show TypeRecord where
     show (RecordType a b _) = a ++ " " ++ (show b)
 
-data Typed = ValueTyper TypedValue
+data Typed = ValueTyper TypeValue
             | FunctionTyper TypeFunction
             | ProductTyper TypeProduct
             | IntersectionTyper TypeIntersection
@@ -115,3 +108,13 @@ instance Show Typed where
     show (IntersectionTyper v) = show v
     show (UnionTyper v) = show v
     show (RecordTyper v) = show v
+
+getTypeInfo :: Typed -> TokenInfo
+getTypeInfo (ValueTyper (ValueType _ (VName _ t))) = t
+getTypeInfo (FunctionTyper (FuncType {domain=_, codomain=NList (VName _ a) _})) = a
+getTypeInfo (ProductTyper (ProductType _ t) ) = t
+getTypeInfo (IntersectionTyper (IntersectionType (NList (ValueType _ (VName _ t)) _) ) ) = t
+getTypeInfo (UnionTyper (UnionType (NList (ValueType _ (VName _ t)) _) ) ) = t
+getTypeInfo (RecordTyper (RecordType _ _ t) ) = t
+
+type TypeScope = DMap.Map String Typed
