@@ -13,6 +13,9 @@ import Expression.Literal
 import Expression.Identifier
 import Expression.Expression
 
+-- Parser
+import Parser.ParseError
+
 -- type ParsingState = DMap.Map String TypeScope
 type ParsingState = TypeScope
 
@@ -41,6 +44,38 @@ addProcDef2PState pd scopeName pstate =
     in case DMap.lookup scopeName pstate of
             Nothing -> DMap.insert pname ptype pstate
             Just t -> error $ show ( NameAlreadyBound pname tn t)
+
+addAssign2PState :: Assign -> String -> ParsingState -> ParsingState
+addAssign2PState (Assigner ids texpr) scopeName pstate =
+    let idtype = fromIdentifier2ValueType ids
+        (ValueType s tname) = idtype
+        tval = ValueTyper (ValueType s tname)
+        isDecl =  DMap.member s pstate
+    in if isDecl
+       then error $! show (NameAlreadyBound s tname tval)
+       else case texpr of
+                -- literal
+                (TypedLit lit) ->
+                    let vtype = fromLiteral2ValueType lit
+                        (ValueType slit stname) = vtype
+                        isWellTyped = vtype == idtype
+                    in if isWellTyped
+                       then DMap.insert s tval pstate
+                       else error $! show (WrongType (show tname) (show stname) tval)
+                -- identifier
+                (TypedId idname) ->
+                    -- find the previously declared type and
+                    -- check if it corresponds to current type
+                    let (VName prevIdName t) = idname 
+                    in case DMap.lookup prevIdName pstate of
+                            Nothing -> error $! show ( UndefinedError prevIdName t)
+                            Just t -> let isWellTyped = t == tval
+                                      in if isWellTyped
+                                         then DMap.insert s tval pstate
+                                         else error $! show (WrongType (show tname) (show idtype) tval)
+
+                -- procedure call
+
 
 -- addModuleDef2PState :: Module
 -- addAssign2PState :: Assign -> ParsingState -> ParsingState

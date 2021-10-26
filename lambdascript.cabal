@@ -45,6 +45,7 @@ library
       RuntimeEnv.FnNumber
       RuntimeEnv.StdEnv
       TypeSystem.TypeChecker
+      TypeSystem.TypeContext
       TypeSystem.TypeError
       TypeSystem.TypeExpression
       TypeSystem.TypeIO

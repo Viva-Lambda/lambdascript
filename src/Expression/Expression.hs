@@ -61,19 +61,6 @@ sequence := ( seq/liste <expression>+ )
 
 -}
 
-{-
-struct Expr{
-    ConstructorType t;
-    Expr(GetExpr){
-        t = GetExpr;
-        }
-    Expr(StmtExpr){
-        t = StmtExpr;
-        }
-    Expr(EndExpr){}
-};
--}
-
 
 data Expr = GExpr GetExpr
             | StmtExpr Statement

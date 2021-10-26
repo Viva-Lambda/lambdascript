@@ -15,7 +15,7 @@ import Parser.ASTree
 import Parser.ParseError
 import Parser.ParsingState
 import Parser.ParseResult
-import Parser.ParseUtils hiding (Input, InputNoState)
+import Parser.ParseUtils
 
 -- runtime environment required for accessing operators
 import RuntimeEnv.StdEnv
@@ -28,13 +28,12 @@ import qualified Data.List as DList
 
 instance Functor ParseResult where
     -- fmap :: (a -> b) -> f a -> f b
-    fmap f (PResult (k, p, a)) = PResult (k, p, f a)
+    -- fmap :: (a -> b) -> ParseResult a -> ParseResult b
+    fmap f (PResult (keys, pstate, a)) = PResult (keys, pstate, f a)
     fmap _ (PError err) = PError err
 
 
-type Input = (Keywords, ParsingState, STree)
-type InputNoState  = (Keywords, STree)
-
+type ScopeName = String
 -- top down recursive descent
 
 noSideExpression :: InputNoState -> StatelessParseResult Expr
@@ -60,6 +59,10 @@ noSideExpression (k, (SList a)) =
             StatelessPError $ show (OtherError (err ++ ":in expression:"))
 
 noSideExpression (_, v) = StatelessPError $ show (MatchError v "expression")
+
+-- scopedExpression :: Input -> ScopeName -> ParseResult Expr
+-- scopedExpression (k, ps, a) sname =
+--    let sexpr = noSideExpression (k, a)
 
 expression :: Input -> ParseResult Expr
 
