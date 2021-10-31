@@ -5,6 +5,35 @@ import Expression.Identifier
 import Expression.Literal
 
 {-
+The new grammar of the language:
+
+Constructs of the language:
+flow
+context
+function
+
+function takes a context as input, and outputs a context and a signal.
+flow takes a function name and a signal as input, outputs a context
+and a function name. The resulting function name and context is executed after
+the function in the input if it outputs the associated signal.
+
+Context is essentially a named map of types. 
+Its keys can be either strings or integers and they hold values. Each pair is
+associated to a type.
+
+Compiling occurs in several stages:
+- Lexing
+- Symbolic Tree building where we build the AST
+- Symbolic Tree expansion, where we inject parts of AST to different places
+  and maybe compute some compile time values.
+- Parse context definitions: Parse the resulting AST for definitions
+- Parse procedure definitions: Parse the resulting AST for function definitions
+- Parse flow statements: Parse the resulting ast for flow statements.
+- Check if the resulting path from flow statements has a hole in it somewhere.
+- Parse procedure applications:
+- Type checking according to simply typed lambda calculus.
+
+
 Here is the grammar of the language
 
 expression := <get> | <statement>
