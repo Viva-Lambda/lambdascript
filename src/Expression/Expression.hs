@@ -21,11 +21,175 @@ Context is essentially a named map of types.
 Its keys can be either strings or integers and they hold values. Each pair is
 associated to a type.
 
+The implicit flow and the explicit flow:
+The implicit flow is when a procedure calls another procedure in its body.
+The explicit flow is when a procedure is tied to another procedure explicitly
+using a flow statement.
+The implicit declaration of explicit flow is when a procedure declares what is
+to be follow or precede it in its body.
+
+Couple of restrictions apply. implicit flows can not specify external
+contexts. They are either empty context functions produced by some combinators
+or functions that have the same context. The restriction does not apply to
+implicit declaration of explicit flows.
+
+An abstraction binds an input to an expression, 
+L x.x**2 + 3 means f(x) = x**2 + 3
+in our language this would be something like (f (x).(+ (** x 2) 3))
+
+Notice the duo (abstractionName (VariableName).(Expression)).
+This is the basis of our syntax for defining procedures.
+
+Defining procedures for some typing context is more or less the same:
+(ContextName abstractionName(VariableNameInContext).(Expression))
+
+
+Defining flow statements is all about binding procedures to other procedures
+with or without specifying the context. If the context is not specified we
+assume that the binding argument inherits context from the binded procedure.
+
+(:= procName(
+        (signal).(proc1: Context) (signal).(proc2) (signal).(proc3: Context2)
+    )
+)
+
+Here the proc2 inherits the context of procName.
+
+The contexts actualize as states during the evaluation of programs.
+
+Passing of value between procedures are done by & operator.
+Let's suppose the following computation:
+(f (x).(* x 2))
+
+Suppose that this computation is bound to a context ex. (|- MyCon(x).f)
+
+Let's suppose another computation:
+(g (y).(* (+ y $) 3)) which is bound to another context ex. (|- MyOtherCon(y).g)
+
+Let's suppose a flow such as:
+(:= MyCon(f).(
+        (2).(g: MyOtherCon) (4).(proc2) (_).(proc3)
+    )
+)
+This is saying that if the procedure "f" outputs 2 as value go to "g" if it
+outputs 4 go to "proc2", otherwise go to "proc3".
+
+If "f" is followed by "g" the "$" would yield as "2" in the evaluation of g.
+
+Let's suppose another case with 3 procedures:
+(MyCon f(x).(* x 2))
+(MyOtherCon g(y).(* y 3))
+(MySomeCon k(z).(* z ((+ (& f) (& g)))))
+
+Suppose a flow such as
+(:= MyCon(f).(
+        (2).(z: MySomeCon) (4).(proc2) (_).(proc3)
+    )
+)
+(:= MyOtherCon(g).(
+        (6).(z: MySomeCon) (4).(proc2) (_).(proc3)
+    )
+)
+
+($ f) fetches the value computed in the procedure "f", and (& g) fetches the
+value computed in the procedure "g" preceding the procedure "k".
+
+Basically our grammar is something like the following:
+
+program := <expression> <expression>*
+expression := <get>
+            | <abstraction-declaration> 
+
+get := <constant>
+     | <varname>
+     | <application>
+
+constant := <bool> | <number> | <string>
+bool := true | false
+number := <int> | <real>
+int := 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9
+real := <int>+.<int>+
+string := " any unicode character that does not break quotes "
+
+varname := <alphabetic>+<numeric>* | alphabetic>+_*<numeric>*_*
+alphabetic := [a-zA-Z]
+numeric := <int>
+
+abstraction-declaration := <pure-abstraction> 
+                         | <context-declaration> 
+                         | <bind-declaration> 
+
+pure-abstraction := (<abstraction-name> (<identifier>*)<substitute-marker>(<expression>+))
+abstraction-name := <varname>
+identifier := <varname><in-marker> <typename>
+in-marker := :
+typename := <varname>
+substitute-marker := <s-m>
+s-m := .
+
+bind-declaration := <context-bind> | <flow-bind>
+
+context-bind := (:= <context-name>(<identifier-in-context>+)<s-m><abstraction-name>)
+context-name := <varname>
+identifier-in-context := <identifier>
+
+flow-bind := (:= <context-name>(<abstraction-name>)<s-m>(<signaled-expression>+) )
+signaled-expression := <explicit-context-declaration> 
+                     | <implicit-context-declaration>
+
+explicit-context-declaration := (<signal>)<s-m>(<abstraction-name> <context-name>)
+implicit-context-declaration := (<signal>)<s-m>(<abstraction-name>)
+signal := <constant> | <default-branch-marker>
+default-branch-marker := _
+
+
+context-declaration := <full-declaration> | <partial-declaration>
+full-declaration := (<basis-marker> <context-name><s-m>(<type-assumption>+))
+basis-marker := |-
+type-assumption := <identifier> | <multi-assumption>
+multi-assumption := (<varname>+ <in-marker> <typename>)
+partial-declaration := (<basis-marker> <context-name><s-m><type-assumption>)
+
+application := <fetch-app> | <numeric-app> | <abstract-app>
+fetch-app := (<fetch-operator>) 
+           | (<fetch-operator> <abstraction-name>) 
+           | (<fetch-operator> <abstraction-name><in-marker><context-name>)
+
+fetch-operator := $
+
+numeric-app := <arithmetic-app> | <compare-app>
+arithmetic-app := (<arithmetic-operator> <get>+)
+compare-app := (<compare-operator> <get>) | (<compare-operator> <get> <get>)
+arithmetic-operator := <plus> | <multiply> | <minus> | <divide> | <power>
+
+plus := +
+minus := -
+divide := /
+multiply := *
+power := ^
+
+
+compare-operator := <or> | <and> | <equal> | <not> | <greater>
+
+not := ~
+equal := ==
+or := ||
+and := &&
+greater := >
+
+abstract-app := (<operator> <operand>*)
+operator := <free-operator> | <bounded-operator>
+free-operator := <abstraction-name>
+bounded-operator := <context-name>(<abstraction-name>)
+operand := <get>
+
+
 Compiling occurs in several stages:
 - Lexing
 - Symbolic Tree building where we build the AST
 - Symbolic Tree expansion, where we inject parts of AST to different places
   and maybe compute some compile time values.
+- Parse Abstract Binding tree.
 - Parse context definitions: Parse the resulting AST for definitions
 - Parse procedure definitions: Parse the resulting AST for function definitions
 - Parse flow statements: Parse the resulting ast for flow statements.
