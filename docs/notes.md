@@ -1,7 +1,6 @@
 # Design Notes
 
-The new grammar in bnf like form:
-
+The new grammar in bnf like form: TODO needs to be updated to usage examples
 
 ```
 program := <expression> <expression>*
@@ -28,51 +27,59 @@ numeric := <int>
 
 abstraction-declaration := <procedure-declaration>
                          | <context-declaration>
+                         | <record-declaration>
                          | <bind-declaration>
 
-procedure := (<in-marker><codomain-indicator> <abstraction-name>(<identifier>*)<substitute-marker>(<expression>+))
+lambda-body := (<expression>*)
+lambda-arguments := (<identifier>*)
+lambda-signature := <in-marker><codomain-indicator>
+lambda-declaration := (<lambda-signature> <lambda-arguments><s-m><lambda-body>)
+procedure := (<lambda-signature> <abstraction-name><lambda-arguments><s-m><lambda-body>)
 codomain-indicator := <typename>
 abstraction-name := <varname>
 identifier := <varname><in-marker> <typename>
 in-marker := :
 typename := <base-typename> | <compound-typename>
-base-typename := <constant-typename> | <proc-type-name>
+base-typename := <constant-typename>
 constant-typename := <numeric-typename> | <string-typename> | <bool-typename>
 numeric-typename := int | float
 string-typename := str
 bool-typename := bool
-context-type-name := context
-proc-type-name := proc
 substitute-marker := <s-m>
 s-m := .
-compound-typename := <context-name>
+compound-typename := <record-name>
 
-bind-declaration := <context-bind> | <flow-bind>
+bind-declaration := <record-bind> | <flow-bind> | <abstraction-bind>
 
-context-bind := <abstraction-bind> | <member-bind>
-abstraction-bind := (:= <context-name>(<context-varname>+)<s-m><abstraction-name>)
-context-name := <varname>
-context-varname := <varname>
-member-bind := <context-get-bind> | <context-context-bind>
-context-get-bind := (:= <context-name>(<context-varname>)<s-m><get>)
-context-context-bind := (:= <context-name>(<context-varname>)<s-m><context-name>)
+record-bind := (:= <record-name><s-m>( <record-element>+ ))
+record-element := <abstraction-member> | <literal-member> 
+abstraction-member := <record-varname><s-m><lambda-declaration>
+record-name := <varname>
+record-varname := <varname>
+literal-member := <record-varname><s-m>(<constant> | <record-name>)
 
 flow-bind := (:= <context-name>(<abstraction-name>)<s-m>(<signaled-expression>+))
-signaled-expression := <readwrite-context-declaration>
-                     | <readonly-context-declaration>
+signaled-expression := <explicit-context-declaration>
+                     | <implicit-context-declaration>
 
-readwrite-context-declaration := (<signal>)<s-m>(<abstraction-name> <fetch-operator>)
-readonly-context-declaration := (<signal>)<s-m>(<abstraction-name>)
+explicit-context-declaration := (<signal>)<s-m>(<abstraction-name> <context-name>)
+implicit-context-declaration := (<signal>)<s-m>(<abstraction-name>)
 signal := <constant> | <default-branch-marker>
 default-branch-marker := _
 
+abstraction-bind := (:= <abstraction-name><s-m><abstraction-name>)
 
-context-declaration := <full-declaration> | <partial-declaration>
-full-declaration := (<basis-marker> <context-name><s-m>(<type-assumption>+))
+context-declaration := <full-context-declaration>
+full-context-declaration := (<basis-marker> <context-name><s-m>(<type-assumption>+))
 basis-marker := |-
-type-assumption := <identifier> | <multi-assumption>
-multi-assumption := (<varname>+ <in-marker> <typename>)
-partial-declaration := (<basis-marker> <context-name><s-m><type-assumption>)
+type-assumption := (<in-marker><predicate> <subject>)
+predicate := <typename>
+subject := <varname>
+
+record-declaration := <full-record-declaration> | <partial-record-declaration>
+full-record-declaration := (<record-marker> <record-name><s-m>(<record-member>+))
+partial-record-declaration := (<record-marker> <record-name><s-m>(<int>+))
+
 
 application := <fetch-app> | <numeric-app> | <abstract-app>
 fetch-app := (<fetch-operator>)
@@ -148,66 +155,84 @@ Usage examples in new grammar:
 ;; to obtain more complex abstractions such as
 (:float f_g(x: float).(g (h x)))
 
-;; context declaration 
+;; context declaration. It includes typing judgements that can be used
+;; with abstractions
 
-(|- MyContext
+(|- MyContext.(
     (:int x)
     (:float y)
-    (:floats xs)
-    (:ints ys).(6) ;; equals (0 0 0 0 0 0)
+    (:floats xs(2)) ;; equals(float float)
+    (:ints ys(6)) ;; equals (int int int int int int)
     (:str z)
-    (:strs zs).(3) ;; equals ("" "" "")
+    (:strs zs(3)) ;; equals (str str str)
     (:bool f(arg1: bool arg2: bool))
+    )
 )
 
-;; you can also declare context with default values
-(|- MyContext
-    (:int x.(6))
-    (:float y.(6.7))
-    (:floats xs.(6.7 7.3 75.0 0.5))
-    (:ints ys.(6)) ;; equals (0 0 0 0 0 0)
-    (:str z.("my string"))
-    (:strs zs.("my string" "my another string" "some other string"))
-    (:bool f(arg1: bool arg2: bool).(&& arg1 arg2))
-)
-;; this creates accessor functions automatically so we have
-(x MyContext) ;; gives 6
-(xs MyContext) ;; gives (6.7 7.3 75.0 0.5)
+;; record declaration. Records hold heterogeneous data bind to nmaes
 
-;; we can also declare contexts partially
-(|- AnotherContext.(6) ;; we have six slots for binding abstractions
-)
-
-;; binding abstractions to partially declared contexts is very easy
-;; suppose we want to have something like the following at the end
-(|- AnotherContext
+(:# MyRecord.(
     (:int a).(4)
     (:float b).(3.7)
     (:floats as).(5.7 5.3 81.0 -2.5)
     (:ints bs).(5 9 70 2)
     (:str c).("string")
     (:strs cs).("string" "m string" "n string")
+    ) 
+)
+
+;; this creates accessor functions automatically so we have
+(a MyRecord) ;; gives 4
+(as MyRecord) ;; gives (5.7 5.3 81.0 -2.5)
+
+;; we can also declare records partially
+(:# MyOtherRecord.(6) ;; we have six slots for binding abstractions
+)
+
+;; binding abstractions to partially declared records is very easy
+;; suppose we want to have something like the following at the end
+(:# MyOtherRecord.(
+    (:int a).(4)
+    (:float b).(3.7)
+    (:floats as).(5.7 5.3 81.0 -2.5)
+    (:ints bs).(5 9 70 2)
+    (:str c).("string")
+    (:strs cs).("string" "m string" "n string")
+    )
 )
 ;; we need to declare them as the following:
-(|- AnotherContext.(6)
+(:# MyOtherRecord.(6)
 )
 
 (:int a.(4))
-(:= AnotherContext.a)
+(:# MyOtherRecord.a)
 
-(:= AnotherContext.(:float b(3.7)))
-(:= AnotherContext.(:floats as(5.7 5.3 81.0 -2.5)))
-(:= AnotherContext.(:ints bs(5 9 70 2)))
-(:= AnotherContext.(:str c("string")))
-(:= AnotherContext.(:strs cs("string" "m string" "n string")))
+(:# MyOtherRecord.(:float b(3.7)))
+(:# MyOtherRecord.(:floats as(5.7 5.3 81.0 -2.5)))
+(:# MyOtherRecord.(:ints bs(5 9 70 2)))
+(:# MyOtherRecord.(:str c("string")))
+(:# MyOtherRecord.(:strs cs("string" "m string" "n string")))
+
+
+;; if all slots are not bind with expressions the compiler will generate
+;; error.
 
 ;; the difference between binding 'a' and other bindings is that 
-;; binding a can be overloaded with other contexts so it is possible 
-;; to do something like this
-(|- MyA.(2))
-(|- MyB.(1))
+;; binding a can be overloaded with other records that have the same type for
+;; the "a" so it is possible to do something like the following
 
-(:int p.(6))
+(|- MyContextA.(
+    (:int a)
+    (:int b)
+    )
+)
+(|- MyContextB.(
+        (:int a)
+        (:float b)
+    )
+)
+
+(:int a.(6))
 (:= MyA.p)
 (:= MyB.p)
 (:= MyA.(:str c("mystring")))
@@ -224,41 +249,81 @@ Usage examples in new grammar:
 (:int fn1(x: int).(* x 2))
 (:int fn2(y: int).(* y 3))
 
-;; then bind it to different contexts
-(|- MContA.(2))
-(|- MContB.(3))
+;; then bind it to different records to obtain and interface like behaviour
+(:# MRecA.(2))
+(:# MRecB.(3))
 
-(:= MContA.(fn1))
-(:= MContA.(fn2))
+(:= MRecA.(fn1))
+(:= MRecA.(fn2))
 
-(:= MContB.(fn1))
-(:= MContB.(fn2))
-(:= MContB.(:bool f(arg: bool arg2: bool).(|| arg arg2)))
+(:= MRecB.(fn1))
+(:= MRecB.(fn2))
+(:= MRecB.(:bool f(arg: bool arg2: bool).(|| arg arg2)))
 
-;; notice that abstractions can produce contexts that are previously declared
-(|- ContA
+;; notice that abstractions can produce records that are previously declared
+(:# RecordA
     (:int x)
     (:int y)
     (:floats z).(2)
     (:int f(arg1: int arg2: int))
 )
-(:ContA 
+(:RecordA
     contMaker(x_: int, y_: int, z_1: float, z_2: float).(
+        (:= RecordA.(
+                x.(x_)
+                y.(y_)
+                z.(z_1 z_2)
+                f.(:int (arg1: int arg2: int).(+ (* arg1 x_) (* arg2 y_)))
+            )
+        )
+    )
+)
+;; if the record is previously not declared, trying to produce it would result
+;; in compile time error
+
+;; now let's see flow binding
+(:int f1.(4)) ;; abstraction
+(:int f2.(-1)) ;; abstraction
+(:int f3.(7)) ;; abstraction
+
+(:= MyContext(f1).( ;; flow binding
+        (4).(f2) ;; if f1 outputs 4 f2 is evaluated afterwards
+        (_).(f3) ;; otherwise f3 evaluated
     )
 )
 
+;; what happens if we want to reuse abstractions further down the evaluation
+;; path. Simply, what happens if we have something like 
+;; f1 -> f2 -> f3 -> f1 -> f4 where pointing to f1 in f3 would cause
+;; revaluation of f2
+
+;; the solution is simple: just bind the relative abstraction to a new variable
+(:= fa.f1)
+
+;; then the flow statement would do f1 -> f2 -> f3 -> fa -> f4
 ```
+
 Constructs of the language:
 flow statements: goto statements on steroids
-context: corresponds more or less structs in C-like languages
+context: holds typing information with respect to some evaluation context.
 abstraction: corresponds to procedures.
+record: corresponds more or less structs in C-like languages.
 
-procedure takes a context as input, and outputs a context and a signal.
-The signal is used for branching in the resulting computational graph.
+procedure takes a context as input, and outputs an atomic value or a record
+and a signal. The signal is used for branching in the resulting computational
+graph. The idea is that for values such as true, false, and other constants
+required for deciding flow direction, the developer knows which branch goes
+along with which value. If the developer does not know which a constant value
+one can always recourse to wild card notations for specifying the branch.
 
-Flows are bindings. They are essentially stitches that join the computations.
+Flows are bindings. They are essentially stitches that join computations.
 Computations can be expressed within contexts or can inherit the context of
-previous caller.
+previous caller. The transmission of values from one procedure to another is
+done using captures. If the value is used in the next procedure, it is
+captured in the next procedure, if it is not used, it is not captured thus
+discarded.
+
+
 The implicit flow and the explicit flow.
 The implicit flow is when a procedure calls another procedure in its body.
 The explicit flow is when a procedure is tied to another procedure explicitly
@@ -272,13 +337,40 @@ contexts. They are either empty context functions produced by some combinators
 or functions that have the same context. The restriction does not apply to
 implicit declaration of explicit flows.
 
-Procedures that access multiple contexts imply that there are multiple flow
-statements pointing towards the procedure each coming with different context.
+Procedures that access multiple contexts result in compile error. There must
+only be single context associated with any given procedure at each time. If
+the typing basis of the abstraction requires more elaborate contexts, the
+developer can merge contexts using context binds. Context binds can stitch two
+contexts to a different name if all of their variables are distinct from each
+other.
 
+Notice that contexts are typing contexts. They simply tell
+you how variables of the abstraction are typed. This mostly apply to the
+keywords of functions. We deduce the rest from the body of the function.They
+are to be interpreted as typing basis in which some variable is associated
+to a type, or in simply typed lambda calculus terms, some subjects are
+associated with predicates.
 
-Context is essentially a struct. Meaning that it has some heterogeneous
+Record is essentially a struct. Meaning that it has some heterogeneous
 fields with names. They are to be declared with default values, no null
 reference etc.
+
+Types 
+------
+
+There are only two types in LambdaScript: function space types, and atomic
+types. 
+
+Atomic types are: `int, str, bool, float`. Notice the absence of the null, or
+none type. If one wants to return null from a function, one should simply not
+capture the function's value while writing the relative flow statements of the
+function.
+
+Function space types have the following structure: `A -> B`. Notice that
+record in this sense are simply function space types, since the so called
+members are just accessory procedures that output a literal value or another
+expression given the record.
+
 
 The old grammar in bnf like form:
 
