@@ -78,7 +78,10 @@ subject := <varname>
 
 record-declaration := <full-record-declaration> | <partial-record-declaration>
 full-record-declaration := (<record-marker> <record-name><s-m>(<record-member>+))
-partial-record-declaration := (<record-marker> <record-name><s-m>(<int>+))
+partial-record-declaration := <partial-recod-header> <partial-record-member>+
+partial-record-header := (<record-marker> <record-name><s-m>(<int>+))
+partial-recod-member := (<record-marker> <record-name><s-m>(<record-member>))
+record-marker := :#
 
 
 application := <fetch-app> | <numeric-app> | <abstract-app>
@@ -132,8 +135,8 @@ Usage examples in new grammar:
 ;; to 6. For functions with literal values such as these the expression would
 ;; be directly evaluated during the compilation.
 
-;; declarative way
-(:int f2(:int(float, float), int, float)) 
+;; with a function argument
+(:int f2( fn(float, float): int, arg1: float, arg2: float).(fn arg1 arg2))
 ;; read this as f1 is the abstraction that binds the abstraction binding two
 ;; floating points to an integer to an integer and a float
 ;; Notice that this is curried as 
@@ -149,7 +152,7 @@ Usage examples in new grammar:
 
 ;; let's define several more abstractions
 (:float g(y: float).(** y 3))
-(:bool h(z: bool).(== z true))
+(:bool h(z: float).(== z 1.0))
 
 ;; we can combine these abstractions and bind them to different names
 ;; to obtain more complex abstractions such as
@@ -168,6 +171,21 @@ Usage examples in new grammar:
     (:bool f(arg1: bool arg2: bool))
     )
 )
+
+;; once you declared a context, you can extend it by binding other contexts
+;; which do not contain duplicates using bind statements
+
+;; Let's define some contexts
+(|- MyContextA.( (:int a) (:float b) ))
+(|- MyContextB.( (:int c) (:float d) ))
+(|- MyContextC.( (:int e) (:float f) ))
+(|- MyContextD.( (:float a) (:float g) ))
+
+;; the following is valid
+(:= MyContextC.(MyContextA MyContextB))
+
+;; the following is invalid
+(:= MyContextD.(MyContextA MyContextB)) ;; since "a" is duplicate
 
 ;; record declaration. Records hold heterogeneous data bind to nmaes
 
@@ -221,21 +239,21 @@ Usage examples in new grammar:
 ;; binding a can be overloaded with other records that have the same type for
 ;; the "a" so it is possible to do something like the following
 
-(|- MyContextA.(
+(:# MyRecA.(
     (:int a)
     (:int b)
     )
 )
-(|- MyContextB.(
+(:# MyRecB.(
         (:int a)
         (:float b)
     )
 )
 
 (:int a.(6))
-(:= MyA.p)
-(:= MyB.p)
-(:= MyA.(:str c("mystring")))
+(:# MyRecA.p)
+(:# MyRecB.p)
+(:# MyRecA.(:str c("mystring")))
 
 ;; these make the following usage possible
 (p MyA) ;; results in 6
@@ -249,16 +267,16 @@ Usage examples in new grammar:
 (:int fn1(x: int).(* x 2))
 (:int fn2(y: int).(* y 3))
 
-;; then bind it to different records to obtain and interface like behaviour
+;; then compose them to different records to obtain and interface like behaviour
 (:# MRecA.(2))
 (:# MRecB.(3))
 
-(:= MRecA.(fn1))
-(:= MRecA.(fn2))
+(:# MRecA.(fn1))
+(:# MRecA.(fn2))
 
-(:= MRecB.(fn1))
-(:= MRecB.(fn2))
-(:= MRecB.(:bool f(arg: bool arg2: bool).(|| arg arg2)))
+(:# MRecB.(fn1))
+(:# MRecB.(fn2))
+(:# MRecB.(:bool f(arg: bool arg2: bool).(|| arg arg2)))
 
 ;; notice that abstractions can produce records that are previously declared
 (:# RecordA
@@ -293,7 +311,7 @@ Usage examples in new grammar:
 )
 
 ;; what happens if we want to reuse abstractions further down the evaluation
-;; path. Simply, what happens if we have something like 
+;; path. Simply, what happens if we have something like
 ;; f1 -> f2 -> f3 -> f1 -> f4 where pointing to f1 in f3 would cause
 ;; revaluation of f2
 
@@ -301,6 +319,47 @@ Usage examples in new grammar:
 (:= fa.f1)
 
 ;; then the flow statement would do f1 -> f2 -> f3 -> fa -> f4
+;; this is abstraction binding
+
+;; what if you want to bind another context to the next execution
+
+;; some metaprogramming facilities are provided with macros
+
+;; let's declare a macro
+@MyMacro(|- MyContC.( (:int a) (:int b) (:int c) ))
+
+;; you can think of this as attaching a list of elements to MyMacro
+;; something like 
+;; MyMacro = ["|-", ["MyContC", ["( (:int a) (:int b) (:int c) )"]] ]
+
+;; you can access these elements with
+;; @^ for the head of the list and @$ for the tail of the list
+;; if you want to access all of the content you can use the @ operator
+;; these operators are used in the following way
+(@ MyMacro) ;; results in (|- MyContC.( (:int a) (:int b) (:int c) ))
+(@^ MyMacro) ;; results in ( |- )
+(@$ MyMacro) ;; results in ( MyContC.( (:int a) (:int b) (:int c) ) ) 
+
+;; how do we get rid of paranthesis ?
+
+;; by specifying the macro expansion environments
+'(@^ MyMacro) ;; results in |-
+'(@$ MyMacro) ;; results in MyContC.( (:int a) (:int b) (:int c) )
+
+;; inside macro expansion environments the expansions would consume only the
+;; outer parenthesis. So we can nest expansions
+
+'(@^ (@$ MyMacro)) ;; results in MyContC for example
+
+
+;; change its operator
+
+;; change its name
+
+;; change domain
+
+;; change predicates
+
 ```
 
 Constructs of the language:
@@ -308,6 +367,97 @@ flow statements: goto statements on steroids
 context: holds typing information with respect to some evaluation context.
 abstraction: corresponds to procedures.
 record: corresponds more or less structs in C-like languages.
+macros: basic metaprogramming facilities
+
+Record
+-------
+
+Record is essentially a struct. Meaning that it has some heterogeneous
+fields with names. They are to be declared with default values, no null
+reference etc. They can be declared in full at one go or in parts.
+Here is full declaration example:
+
+```clojure
+
+(:# MyRecord.(
+    (:int a).(4)
+    (:float b).(3.7)
+    (:floats as).(5.7 5.3 81.0 -2.5)
+    (:ints bs).(5 9 70 2)
+    (:str c).("string")
+    (:strs cs).("string" "m string" "n string")
+    ) 
+)
+```
+
+Notice that the members of the struct are in fact bounded abstractions. They
+work as procedures that output their associated value given the record.
+They work like the record syntax of Haskell. So in order to access the value
+`4` for example, one should do: `(a MyRecord)` which would yield 4.
+
+Partial declaration is also quite simple. Here is an example:
+
+```clojure
+
+;; suppose we want to have something like this at the end
+(:# MyOtherRecord.(
+    (:int a).(4)
+    (:float b).(3.7)
+    (:floats as).(5.7 5.3 81.0 -2.5)
+    (:ints bs).(5 9 70 2)
+    (:str c).("string")
+    (:strs cs).("string" "m string" "n string")
+    )
+)
+;; we need to declare them as the following:
+(:# MyOtherRecord.(6) ;; a record with six slots for abstractions
+)
+
+(:int a.(4)) ;; some free abstraction bound to base context
+
+(:# MyOtherRecord.a)
+
+(:# MyOtherRecord.(:float b(3.7)))
+(:# MyOtherRecord.(:floats as(5.7 5.3 81.0 -2.5)))
+(:# MyOtherRecord.(:ints bs(5 9 70 2)))
+(:# MyOtherRecord.(:str c("string")))
+(:# MyOtherRecord.(:strs cs("string" "m string" "n string")))
+```
+Notice that this is not a binding but a declaration so we use the record
+declaration operator `:#` and not `:=`.
+
+Partial declaration allows for attaching base context abstractions to multiple
+records easily. It helps us to compose base context abstractions with records.
+The example with `(:int a.(4))` shows have an abstraction bound to a base
+context is composed with `MyOtherRecord`.
+
+Abstraction
+------------
+
+Abstractions are the usual ways of dealing with functions. Though we try to
+have functions rather than procedures, this may not be the case at all times
+due to the flow statements discarding values. There is no concept of variable.
+Here is an example:
+
+```clojure
+(:int f1(x: int, y: int).(/ (* x 2) (+ y 3)))
+```
+read this as the f2 is the abstraction that binds the variable x to the
+expression `(* x 2)` so for (f 3) we will have `(* 3 2)` which would evaluate
+to 6. For functions with literal values such as these the expression would be
+directly evaluated during the compilation.
+We can also use other abstractions as arguments, as in:
+
+```clojure
+(:int f2( fn(float, float): int, arg1: float, arg2: float).(fn arg1 arg2))
+```
+Here the `fn` is the argument abstraction which substitutes two floating
+points with an integer.
+
+
+Flow Statements
+----------------
+
 
 procedure takes a context as input, and outputs an atomic value or a record
 and a signal. The signal is used for branching in the resulting computational
@@ -333,7 +483,7 @@ The implicit declaration of explicit flow is when a procedure declares what is
 to be follow or precede it in its body (this is not yet supported !).
 
 Couple of restrictions apply. implicit flows can not have external
-contexts. They are either empty context functions produced by some combinators
+contexts. They are either base context functions produced by some combinators
 or functions that have the same context. The restriction does not apply to
 implicit declaration of explicit flows.
 
@@ -351,15 +501,19 @@ are to be interpreted as typing basis in which some variable is associated
 to a type, or in simply typed lambda calculus terms, some subjects are
 associated with predicates.
 
-Record is essentially a struct. Meaning that it has some heterogeneous
-fields with names. They are to be declared with default values, no null
-reference etc.
+Contexts
+--------
+
+Typing contexts. These are used for specifying the typing basis of functions.
+They can be used as type classes where typing judgements provide prototypes
+for abstractions.
+
 
 Types 
 ------
 
 There are only two types in LambdaScript: function space types, and atomic
-types. 
+types.
 
 Atomic types are: `int, str, bool, float`. Notice the absence of the null, or
 none type. If one wants to return null from a function, one should simply not
@@ -370,6 +524,13 @@ Function space types have the following structure: `A -> B`. Notice that
 record in this sense are simply function space types, since the so called
 members are just accessory procedures that output a literal value or another
 expression given the record.
+
+
+Macros
+-------
+
+Macros are basic meta programming facilities based on substitution of
+lambdascript.
 
 
 The old grammar in bnf like form:
