@@ -530,7 +530,15 @@ Macros
 -------
 
 Macros are basic meta programming facilities based on substitution of
-lambdascript.
+lambdascript. Macro operators work at a token level, that is they can access
+to each token that is validated by the lexer, except parenthesis. Here is an
+example:
+```clojure
+
+;; let's declare a macro
+@MyMacro(|- MyContC.( (:int a) (:int b) (:int c) ))
+
+```
 
 
 The old grammar in bnf like form:
