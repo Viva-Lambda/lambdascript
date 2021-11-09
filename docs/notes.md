@@ -1,6 +1,6 @@
 # Design Notes
 
-The new grammar in bnf like form: TODO needs to be updated to usage examples
+The new grammar in bnf like form
 
 ```
 program := <expression> <expression>*
@@ -126,33 +126,21 @@ Usage examples in new grammar:
 
 ;; marks comment
 
-;; we have two ways of defining abstractions
+(:int f1(float, float)) ;; declaration of the abstraction
+(:= f1(x, y).(floor (* x 2) (+ y 3))) ;; bindin expression to an abstraction
 
-;; simple way where the declaration of the signature and body is combined
-(:int f1(x: float, y: float).(floor (* x 2) (+ y 3)))
-;; read this as the f2 is the abstraction that binds the variable x to the
-;; expression (* x 2) so for (f 3) we will have (* 3 2) which would evaluate
-;; to 6. For functions with literal values such as these the expression would
-;; be directly evaluated during the compilation.
+;; declaration of an abstraction which takes another abstraction as argument
+(:int f2( (:int float, float), float, float))
 
-;; with a function argument
-(:int f2( fn(float, float): int, arg1: float, arg2: float).(fn arg1 arg2))
-;; read this as f1 is the abstraction that binds the abstraction binding two
-;; floating points to an integer to an integer and a float
-;; Notice that this is curried as 
-;; (:int(float, float) -> (int -> (float -> int)))
-;; if we have (f2 f1 6 1.3) this transforms to
-;; (f2 f1) == 
-;;   ((:int(float, float) -> (int -> (float -> int))) :int(float, float))
-;; and we get (int -> (float -> int)) to which we apply 6
-;; and we get (float -> int) to which we apply 1.3
-;; and we get int
-;; we can not organize the expressions inside the function in this manner
-;; then there must be a problem with the function.
+;; binding of an expression to the abstraction
+(:= f2(fn, arg1, arg2).(fn arg1 arg2))
+
 
 ;; let's define several more abstractions
-(:float g(y: float).(** y 3))
-(:bool h(z: float).(== z 1.0))
+(:float g(float))
+(:= g(y).(** y 3))
+(:bool h(float))
+(:= h(z).(== z 1.0))
 
 ;; we can combine these abstractions and bind them to different names
 ;; to obtain more complex abstractions such as
@@ -164,10 +152,10 @@ Usage examples in new grammar:
 (|- MyContext.(
     (:int x)
     (:float y)
-    (:floats xs(2)) ;; equals(float float)
-    (:ints ys(6)) ;; equals (int int int int int int)
+    (:float(2) xs) ;; equals(float float)
+    (:int(6) ys) ;; equals (int int int int int int)
     (:str z)
-    (:strs zs(3)) ;; equals (str str str)
+    (:str(3) zs) ;; equals (str str str)
     (:bool f(arg1: bool arg2: bool))
     )
 )
@@ -187,15 +175,15 @@ Usage examples in new grammar:
 ;; the following is invalid
 (:= MyContextD.(MyContextA MyContextB)) ;; since "a" is duplicate
 
-;; record declaration. Records hold heterogeneous data bind to nmaes
+;; record declaration. Records hold heterogeneous data bind to names
 
 (:# MyRecord.(
-    (:int a).(4)
-    (:float b).(3.7)
-    (:floats as).(5.7 5.3 81.0 -2.5)
-    (:ints bs).(5 9 70 2)
-    (:str c).("string")
-    (:strs cs).("string" "m string" "n string")
+    (:int a.(4))
+    (:float b.(3.7))
+    (:float(4) as.(5.7 5.3 81.0 -2.5))
+    (:int(4) bs.(5 9 70 2))
+    (:str c.("string"))
+    (:str(3) cs.("string" "m string" "n string"))
     ) 
 )
 
@@ -204,32 +192,32 @@ Usage examples in new grammar:
 (as MyRecord) ;; gives (5.7 5.3 81.0 -2.5)
 
 ;; we can also declare records partially
-(:# MyOtherRecord.(6) ;; we have six slots for binding abstractions
+(:# MyOtherRecord(6) ;; we have six slots for binding abstractions
 )
 
 ;; binding abstractions to partially declared records is very easy
 ;; suppose we want to have something like the following at the end
 (:# MyOtherRecord.(
-    (:int a).(4)
-    (:float b).(3.7)
-    (:floats as).(5.7 5.3 81.0 -2.5)
-    (:ints bs).(5 9 70 2)
-    (:str c).("string")
-    (:strs cs).("string" "m string" "n string")
+    (:int a.(4))
+    (:float b.(3.7))
+    (:float(4) as.(5.7, 5.3, 81.0, -2.5))
+    (:int(4) bs.(5, 9, 70, 2))
+    (:str c.("string"))
+    (:str(3) cs.("string" "m string" "n string"))
     )
 )
 ;; we need to declare them as the following:
-(:# MyOtherRecord.(6)
+(:# MyOtherRecord(6)
 )
 
 (:int a.(4))
 (:# MyOtherRecord.a)
 
-(:# MyOtherRecord.(:float b(3.7)))
-(:# MyOtherRecord.(:floats as(5.7 5.3 81.0 -2.5)))
-(:# MyOtherRecord.(:ints bs(5 9 70 2)))
-(:# MyOtherRecord.(:str c("string")))
-(:# MyOtherRecord.(:strs cs("string" "m string" "n string")))
+(:# MyOtherRecord.(:float b.(3.7)))
+(:# MyOtherRecord.(:float(4) as.(5.7 5.3 81.0 -2.5)))
+(:# MyOtherRecord.(:int(4) bs.(5 9 70 2)))
+(:# MyOtherRecord.(:str c.("string")))
+(:# MyOtherRecord.(:str(4) cs.("string" "m string" "n string")))
 
 
 ;; if all slots are not bind with expressions the compiler will generate
@@ -239,21 +227,15 @@ Usage examples in new grammar:
 ;; binding a can be overloaded with other records that have the same type for
 ;; the "a" so it is possible to do something like the following
 
-(:# MyRecA.(
-    (:int a)
-    (:int b)
-    )
-)
-(:# MyRecB.(
-        (:int a)
-        (:float b)
-    )
-)
+(:# MyRecA(2))
+(:# MyRecB(2))
 
 (:int a.(6))
-(:# MyRecA.p)
-(:# MyRecB.p)
+(:# MyRecA.a)
+(:# MyRecB.a)
 (:# MyRecA.(:str c("mystring")))
+
+(:# MyRecB.(:float b.(4.8)))
 
 ;; these make the following usage possible
 (p MyA) ;; results in 6
@@ -268,8 +250,8 @@ Usage examples in new grammar:
 (:int fn2(y: int).(* y 3))
 
 ;; then compose them to different records to obtain and interface like behaviour
-(:# MRecA.(2))
-(:# MRecB.(3))
+(:# MRecA(2))
+(:# MRecB(3))
 
 (:# MRecA.(fn1))
 (:# MRecA.(fn2))
@@ -280,10 +262,10 @@ Usage examples in new grammar:
 
 ;; notice that abstractions can produce records that are previously declared
 (:# RecordA
-    (:int x)
-    (:int y)
-    (:floats z).(2)
-    (:int f(arg1: int arg2: int))
+    (:int x.(0))
+    (:int y.(0))
+    (:float z.(2))
+    (:int f.(arg1: int arg2: int))
 )
 (:RecordA
     contMaker(x_: int, y_: int, z_1: float, z_2: float).(
@@ -346,6 +328,8 @@ Usage examples in new grammar:
 '(@^ MyMacro) ;; results in |-
 '(@$ MyMacro) ;; results in MyContC.( (:int a) (:int b) (:int c) )
 
+;; notice the quote mark '
+
 ;; inside macro expansion environments the expansions would consume only the
 ;; outer parenthesis. So we can nest expansions
 
@@ -363,153 +347,14 @@ Usage examples in new grammar:
 ```
 
 Constructs of the language:
+
 flow statements: goto statements on steroids
 context: holds typing information with respect to some evaluation context.
 abstraction: corresponds to procedures.
 record: corresponds more or less structs in C-like languages.
 macros: basic metaprogramming facilities
 
-Record
--------
-
-Record is essentially a struct. Meaning that it has some heterogeneous
-fields with names. They are to be declared with default values, no null
-reference etc. They can be declared in full at one go or in parts.
-Here is full declaration example:
-
-```clojure
-
-(:# MyRecord.(
-    (:int a).(4)
-    (:float b).(3.7)
-    (:floats as).(5.7 5.3 81.0 -2.5)
-    (:ints bs).(5 9 70 2)
-    (:str c).("string")
-    (:strs cs).("string" "m string" "n string")
-    ) 
-)
-```
-
-Notice that the members of the struct are in fact bounded abstractions. They
-work as procedures that output their associated value given the record.
-They work like the record syntax of Haskell. So in order to access the value
-`4` for example, one should do: `(a MyRecord)` which would yield 4.
-
-Partial declaration is also quite simple. Here is an example:
-
-```clojure
-
-;; suppose we want to have something like this at the end
-(:# MyOtherRecord.(
-    (:int a).(4)
-    (:float b).(3.7)
-    (:floats as).(5.7 5.3 81.0 -2.5)
-    (:ints bs).(5 9 70 2)
-    (:str c).("string")
-    (:strs cs).("string" "m string" "n string")
-    )
-)
-;; we need to declare them as the following:
-(:# MyOtherRecord.(6) ;; a record with six slots for abstractions
-)
-
-(:int a.(4)) ;; some free abstraction bound to base context
-
-(:# MyOtherRecord.a)
-
-(:# MyOtherRecord.(:float b(3.7)))
-(:# MyOtherRecord.(:floats as(5.7 5.3 81.0 -2.5)))
-(:# MyOtherRecord.(:ints bs(5 9 70 2)))
-(:# MyOtherRecord.(:str c("string")))
-(:# MyOtherRecord.(:strs cs("string" "m string" "n string")))
-```
-Notice that this is not a binding but a declaration so we use the record
-declaration operator `:#` and not `:=`.
-
-Partial declaration allows for attaching base context abstractions to multiple
-records easily. It helps us to compose base context abstractions with records.
-The example with `(:int a.(4))` shows have an abstraction bound to a base
-context is composed with `MyOtherRecord`.
-
-Abstraction
-------------
-
-Abstractions are the usual ways of dealing with functions. Though we try to
-have functions rather than procedures, this may not be the case at all times
-due to the flow statements discarding values. There is no concept of variable.
-Here is an example:
-
-```clojure
-(:int f1(x: int, y: int).(/ (* x 2) (+ y 3)))
-```
-read this as the f2 is the abstraction that binds the variable x to the
-expression `(* x 2)` so for (f 3) we will have `(* 3 2)` which would evaluate
-to 6. For functions with literal values such as these the expression would be
-directly evaluated during the compilation.
-We can also use other abstractions as arguments, as in:
-
-```clojure
-(:int f2( fn(float, float): int, arg1: float, arg2: float).(fn arg1 arg2))
-```
-Here the `fn` is the argument abstraction which substitutes two floating
-points with an integer.
-
-
-Flow Statements
-----------------
-
-
-procedure takes a context as input, and outputs an atomic value or a record
-and a signal. The signal is used for branching in the resulting computational
-graph. The idea is that for values such as true, false, and other constants
-required for deciding flow direction, the developer knows which branch goes
-along with which value. If the developer does not know which a constant value
-one can always recourse to wild card notations for specifying the branch.
-
-Flows are bindings. They are essentially stitches that join computations.
-Computations can be expressed within contexts or can inherit the context of
-previous caller. The transmission of values from one procedure to another is
-done using captures. If the value is used in the next procedure, it is
-captured in the next procedure, if it is not used, it is not captured thus
-discarded.
-
-
-The implicit flow and the explicit flow.
-The implicit flow is when a procedure calls another procedure in its body.
-The explicit flow is when a procedure is tied to another procedure explicitly
-using a flow statement.
-
-The implicit declaration of explicit flow is when a procedure declares what is
-to be follow or precede it in its body (this is not yet supported !).
-
-Couple of restrictions apply. implicit flows can not have external
-contexts. They are either base context functions produced by some combinators
-or functions that have the same context. The restriction does not apply to
-implicit declaration of explicit flows.
-
-Procedures that access multiple contexts result in compile error. There must
-only be single context associated with any given procedure at each time. If
-the typing basis of the abstraction requires more elaborate contexts, the
-developer can merge contexts using context binds. Context binds can stitch two
-contexts to a different name if all of their variables are distinct from each
-other.
-
-Notice that contexts are typing contexts. They simply tell
-you how variables of the abstraction are typed. This mostly apply to the
-keywords of functions. We deduce the rest from the body of the function.They
-are to be interpreted as typing basis in which some variable is associated
-to a type, or in simply typed lambda calculus terms, some subjects are
-associated with predicates.
-
-Contexts
---------
-
-Typing contexts. These are used for specifying the typing basis of functions.
-They can be used as type classes where typing judgements provide prototypes
-for abstractions.
-
-
-Types 
+Types
 ------
 
 There are only two types in LambdaScript: function space types, and atomic
@@ -525,20 +370,555 @@ record in this sense are simply function space types, since the so called
 members are just accessory procedures that output a literal value or another
 expression given the record.
 
+We adopt mostly simply typed lambda calculus as our typing system. Most of our
+notions follow: 
+Barendregt, H.P., Dekkers, W. and Statman, R. (2013) Lambda calculus with
+types. Cambridge ; New York: Cambridge University Press (Perspectives in
+logic).
+
+
+Abstraction
+------------
+
+Abstractions are the usual ways of dealing with functions and variables.
+Though we try to have functions rather than procedures, this may not be the
+case at all times due to the flow statements discarding values. There is no
+concept of variable in the sense of c or c++. Here is an example:
+
+```clojure
+(:int f1(int, int)) ;; declaration of abstraction
+(:= f1(x, y).(/ (* x 2) (+ y 3))) ;; binding of the abstraction
+```
+Notice that the abstractions have two components:
+
+- Declaration
+- Binding
+
+Declaration contains type information. Binding contains behavior of the
+abstraction.
+Read the above piece of code as the abstraction f1 binds subject
+`a` and subject `b` whose predicates are `int` to a predicate int.
+
+We can use other abstractions in both components
+
+Using abstraction in a declaration means including abstraction's typing
+judgement for example:
+
+```clojure
+(:int f2( (:int float, float), float, float) )
+(:= f2(fn, a, b).(fn a b))
+```
+Here the `fn` is the abstraction which substitutes two floating
+points with an integer. Notice the "," between arguments. The "," is
+reserved for homogeneous separation, that is, it is reserved for separating
+components that have more or less same meaning given a certain context. We
+shall see other examples.
+
+Here is a variable like abstraction:
+```clojure
+(:int a)
+(:= a.(4))
+```
+
+Notice that there is no difference between an abstraction that binds some
+arguments to an expression and this one which binds no arguments to a literal.
+
+Abstractions are the building blocks of LambdaScript. They can either be free
+or bounded. Bounded abstractions can appear inside records and typing contexts.
+
+Record
+-------
+
+Record is essentially a struct. Meaning that it has some heterogeneous
+fields with names. They can be declared with default values. They can be
+declared in full at one go or in parts. Values can be bind to record fields.
+
+Here is full declaration example with default values:
+
+```clojure
+
+(:# MyRecord.(
+    (:int a.(4)),
+    (:float b).(3.7),
+    (:float(4) as.(5.7, 5.3, 81.0, -2.5)),
+    (:int(4) bs.(5, 9, 70, 2)),
+    (:str c.("string")),
+    (:str(3) cs.("string" "m string" "n string"))
+    )
+)
+```
+
+Notice that the members of the struct are in fact bounded abstractions. They
+work as procedures that output their associated value given the record.  They
+work like the record syntax of Haskell. So in order to access the value `4`
+for example, one should do: `(a MyRecord)` which would yield 4.
+
+Partial declaration is also quite simple. Here is an example with default
+values:
+
+```clojure
+
+;; suppose we want to have something like this at the end
+(:# MyOtherRecord.(
+    (:int a.(4)),
+    (:float b.(3.7)),
+    (:float(4) as.(5.7, 5.3, 81.0, -2.5)),
+    (:int(4) bs.(5, 9, 70, 2)),
+    (:str c.("string")),
+    (:str(3) cs.("string" "m string" "n string"))
+    )
+)
+;; we need to declare them as the following:
+(:# MyOtherRecord(6) ;; a record with six slots for abstractions
+)
+
+(:int a) ;; some free abstraction bound to base context
+(:= a.(4))
+
+(:# MyOtherRecord.a)
+
+(:# MyOtherRecord.(:float b.(3.7)))
+(:# MyOtherRecord.(:float(4) as.(5.7, 5.3, 81.0, -2.5)))
+(:# MyOtherRecord.(:int(4) bs.(5, 9, 70, 2)))
+(:# MyOtherRecord.(:str c.("string")))
+(:# MyOtherRecord.(:str(3) cs.("string", "m string", "n string")))
+```
+
+Notice that this is not a binding but a declaration so we use the record
+declaration operator `:#` and not `:=`.
+
+Partial declaration allows for attaching base context abstractions to multiple
+records easily. It helps us to compose base context abstractions with records.
+The example with `(:int a)` shows have an abstraction bound to a base
+context is composed with `MyOtherRecord`.
+
+Now let's see examples with binding. Here is a full declaration followed by
+binding of abstractions to records:
+
+```clojure
+(:# MyRecA.(
+    (:int a),
+    (:int(4) bs),
+    (:float b),
+    (:float(4) as),
+    (:str c),
+    (:str(3) cs)
+    (:int f(int, int))
+    )
+)
+
+(:= a(MyRecA).(4), bs(MyRecA).(1,2,3,4), b(MyRecA).(4.2),
+    as(MyRecA).(1.0,2.7,3.1,4.7), c(MyRecA).("my string"),
+    cs(MyRecA).("my string", "is", "awesome"),
+    f(MyRecA).((arg1: int, arg2: int).(+ (* arg1 arg1) arg2))
+)
+```
+
+Notice that the abstraction `f` contains only bounded variables. Thus it is
+closed. It is also possible to include free abstractions bounded to base
+typing context, or the context in which the binding takes place.
+
+We can also have default function space typed abstractions with default
+values during the record declaration.
+
+```clojure
+(:# MyRecA.(
+    (:int fn(arg: float, arg2: float).(floor (+ arg arg2)))
+)
+)
+```
+Here the bounded expression must use bounded variables. It must be a closed
+expression, not containing any free variables.
+
+Binding a record with a particular set of values to another abstraction is
+done in the same way as in regular abstractions. Here is an example:
+
+```clojure
+(:# MyRecA.(
+    (:int a),
+    (:int(4) bs),
+    (:float b),
+    (:float(4) as),
+    (:str c),
+    (:str(3) cs)
+    (:int f(int, int))
+    )
+)
+
+(:MyRecA recAbs)
+
+(:= recAbs.(:=
+        a(MyRecA).(4), bs(MyRecA).(1,2,3,4), b(MyRecA).(4.2),
+        as(MyRecA).(1.0,2.7,3.1,4.7), c(MyRecA).("my string"),
+        cs(MyRecA).("my string", "is", "awesome"),
+        f(MyRecA).((arg1, arg2).(+ (* arg1 arg1) arg2))
+    )
+)
+
+(a recAbs) ;; would yield 4 even if the abstraction has a different default
+           ;; value
+
+```
+In the case of records with fields who are themselves records. It would go
+something like this:
+
+```clojure
+(:# MyRecA.(
+    (:int f(int, int))
+    (:float b)
+    )
+)
+
+(:# MyRecB.(
+    (:int g(int, int))
+    (:float a)
+    )
+)
+(:# MyRecC.(
+    (:MyRecA mra)
+    (:MyRecB mrb)
+    )
+)
+(:MyRecA recA)
+
+(:= recA.(:=
+        f(MyRecA).((arg1, arg2).(+ (* arg1 arg1) arg2)),
+        b(MyRecA).(4.3)
+    )
+)
+(:MyRecB recB)
+
+(:= recB.(:=
+        g(MyRecB).((arg1, arg2).(+ (* arg1 arg1) arg2)),
+        a(MyRecB).(4.3)
+    )
+)
+(:MyRecC recC)
+
+(:= recC.(:=
+        mra(MyRecC).(recA),
+        mrb(MyRecC).(recB)
+    )
+)
+
+```
+
+Contexts
+--------
+
+Typing contexts. These are used for specifying the typing basis of
+abstractions. They can be used as type classes where typing judgements
+provide prototypes for abstractions. They are the main extension mechanism for
+adding new semantics to both free abstractions and records.
+
+Here is an example of a context declaration:
+
+```clojure
+
+(|- Printable.(
+    (:str print),
+    (:str printNewLine),
+    )
+)
+
+```
+Notice that it is declared in fully in one go.
+
+Typing context can be bound to abstractions and records.
+Here is an example with an abstraction:
+
+```clojure
+
+(|- Printable.(
+    (:str print),
+    (:str printNewLine),
+    )
+)
+
+(:int a)
+(:= a.(4))
+(:= Printable(a).(
+    print.("a.(4)"),
+    printNewLine.("a.(4)\n"),
+    )
+)
+
+```
+
+Here is an example with a slightly more complex context and an abstraction:
+
+```clojure
+
+(|- Interpolatable.(
+    (:int(2) bounds),
+    (:int interpolate(int, int))
+    )
+)
+
+(:int a(int))
+(:= a(arg).(* 2 arg))
+
+(:= Rangeable(a).(
+    bounds.(a (-4), a 4),
+    interpolate(min, max).(+ min (* (a min) (- max min)))
+    )
+)
+
+```
+Notice that we specify the bounded abstraction once at the top of binding,
+then we use its name inside the abstractions.
+
+The same thing goes for records. For example:
+
+```clojure
+
+(|- Printable.(
+    (:str print),
+    (:str printNewLine)
+    )
+)
+
+(:# MyRecA.(
+    (:int f(int, int))
+    (:float b)
+    )
+)
+
+(:= Printable(MyRecA).(
+        print.(+ (print (b MyRecA)) (print (f MyRecA))),
+        printNewLine.(+ (print (b MyRecA)) (printNewLine (f MyRecA)))
+    )
+)
+
+```
+For record members which have function space types, if one wants to apply
+context abstractions, one must do the following: 
+
+- Declare the abstraction that is going to be a member of the record. 
+- Bind the abstraction to the desired typing context
+- Partially declare the record
+- Bind the abstraction to the record
+
+
+Flow Statements
+----------------
+
+Flows are bindings. They are essentially stitches that join computations.
+There are 2 types of flow bindings:
+
+- exclusive or bindings which are required to be sequential due to their
+  dependence over the runtime output of the preceding function.
+
+- and bindings which are not necessarily sequential and evaluated in parallel
+  whenever possible. These functions do not depend the runtime output of the
+  preceding function.
+
+The transmission of values from one abstraction to another is done using
+captures. If the value is used in the next abstraction, it is captured in the
+next abstraction, if it is not used, it is not captured thus discarded. Here is
+an example:
+
+```clojure
+(:int f1)
+(:= f1.(4))
+
+(:int f2)
+(:= f2.(-1))
+
+(:int f3)
+(:= f3.(7))
+
+;; exclusive-or flow binding
+(|> f1.( 
+        (4).(f2), ;; if f1 outputs 4 f2 is evaluated afterwards
+        (_).(f3)  ;; otherwise f3 evaluated
+    )
+)
+;; and flow binding
+(&> f1.( 
+        (f2), ;; evaluate both abstractions in parallel after f1 
+        (f3)  ;;
+    )
+)
+```
+
+There are two manners for specifying flows:
+
+- Implicit flow is when an abstraction calls another abstraction in its body
+- Explicit is when an abstraction is tied to another one explicitly using a
+  flow binding
+
+The implicit flow is assumed to be an exclusive or flow, thus evaluated in a
+sequential manner depending on the run time output of the preceding
+abstraction.
+
+The idea is that for values such as true, false, and other constants
+required for deciding flow direction, the developer knows which branch goes
+along with which value. If the developer does not know which a constant value
+one can always recourse to wild card notation `_` for specifying the branch.
+
+Flow bindings can introduce constants and other abstractions as arguments. For
+example:
+
+```clojure
+(:int f1)
+(:= f1.(4))
+
+(:int f2(int, int))
+(:= f2(arg1, arg2).(+ arg1 arg2))
+
+(:int f3)
+(:= f3.(7))
+
+;; exclusive-or flow binding
+(|> f1.( 
+        (4).(f2(8, 1)), ;; if f1 outputs 4 f2 is evaluated afterwards
+        (_).(f3)  ;; otherwise f3 evaluated
+    )
+)
+;; and flow binding
+(&> f1.( 
+        (f2(4, 5)), ;; evaluate both abstractions in parallel after f1 
+        (f3)  ;;
+    )
+)
+```
+
+In the case of abstractions, we can use the following:
+
+```clojure
+(:int f1)
+(:= f1.(4))
+
+(:int f2((:int (int, int)), int))
+(:= f2(f, arg1, arg2).(+ (f arg1 arg1) arg2))
+
+(:int f3)
+(:= f3.(7))
+
+(:int f4(int, int))
+(:= f4(arg1, arg2).(+ arg1 arg2))
+
+;; exclusive-or flow binding
+(|> f1.( 
+        (4).(f2(f4, 8, 1)), ;; if f1 outputs 4 f2 is evaluated afterwards
+        (_).(f3)  ;; otherwise f3 evaluated
+    )
+)
+;; and flow binding
+(&> f1.( 
+        (f2(f4, 4, 5)), ;; evaluate both abstractions in parallel after f1 
+        (f3)  ;;
+    )
+)
+```
 
 Macros
 -------
 
-Macros are basic meta programming facilities based on substitution of
-lambdascript. Macro operators work at a token level, that is they can access
+Macros are basic meta programming facilities of LambdaScript based on
+substitution. Macro operators work at a token level, that is they can access
 to each token that is validated by the lexer, except parenthesis. Here is an
 example:
+
 ```clojure
 
 ;; let's declare a macro
-@MyMacro(|- MyContC.( (:int a) (:int b) (:int c) ))
+@MyMacro(|- MyContC.( (:int a), (:int b), (:int c) ))
 
 ```
+One can think of a macro as the following structure
+`MyMacro = ["|-", ["MyContC", [[":", "int", "a"], [...], [...]]]]`
+
+LambdaScript provides four operators for working with these lists:
+
+- `@^`: let's you access to the head of the list.
+- `@$`: let's you access to the last element of the list
+- `@<`: let's you access to initial elements except the last element of the
+  list
+- `@>`: let's you access to the tail of the list.
+
+Here are some usage examples:
+```clojure
+
+;; let's declare a macro
+@MyMacro2(|- MyContC.( (:int a), (:int b), (:int c) ))
+
+(@ MyMacro2) ;; results in (|- MyContC.( (:int a), (:int b), (:int c) ))
+(@^ MyMacro2) ;; results in ( |- )
+(@$ MyMacro2) ;; results in ( MyContC.( (:int a) (:int b) (:int c) ) ) 
+
+```
+Notice that both the result of `@^` and `@$` are syntactically incorrect. Thus
+the compiler would generate an error message. How do we get rid of the
+parenthesis ? By specifying the macro expansion environment.
+
+```clojure
+
+;; let's declare a macro
+@MyMacro2(|- MyContC.( (:int a), (:int b), (:int c) ))
+
+'(@^ MyMacro) ;; results in |-
+'(@$ MyMacro) ;; results in MyContC.( (:int a) (:int b) (:int c) )
+
+```
+Notice the `'` mark at the beginning of the parenthesis. Inside the macro
+expansion environment the expansion consumes only the outer parenthesis. So we
+can safely nest expansions:
+
+```clojure
+
+;; let's declare a macro
+@MyMacro2(|- MyContC.( (:int a), (:int b), (:int c) ))
+
+'(@^ (@$ MyMacro2)) ;; results in MyContC for example
+
+```
+
+The nice thing is macro declarations can contain macro expansion environments
+and function like macros that have constants as arguments are evaluated at the
+compilation phase. For example let's say you want to declare records with
+different number of multi valued types. You can do something like the
+following:
+
+```clojure
+
+;; a function like macro
+@MyInc((x: int).(+ x 1))
+
+@MyRecAMac(:# MyRecA.( (:int'(@ MyInc(3)) a)))
+
+@MyRecBMac(:# MyRecB.( (:int'(@ MyInc( '(@$ ( @> (@^ (@$ MyRecAMac)))) )) a)))
+
+;; the expression (@$ ( @> (@^ (@$ MyRecAMac)))) results in 4
+
+```
+
+Function like macros can be very powerful as they permit to abstract behavior.
+We could have also used an intermediary function like macro to make the above
+expression more readable.
+
+
+```clojure
+
+;; a function like macro
+@MyInc(:int (x: int).(+ x 1))
+
+@MyRecAMac(:# MyRecA.( (:int'(@ MyInc(3)) a)))
+
+@IncFromRecA('(@ MyInc( '(@$ ( @> (@^ (@$ MyRecAMac)))) )))
+
+@MyRecBMac(:# MyRecB.( (:int(@ IncFromRecA) a)))
+
+@IncFromRecB('(@ MyInc( '(@$ ( @> (@^ (@$ MyRecBMac)))) )))
+
+@MyRecCMac(:# MyRec'(@ IncFromRecA).( (:int(@ IncFromRecB) a))) ;; results in 5
+
+```
+
+The main condition for expansion of macros is that they need to be previously
+declared. Shadowing of free abstractions by macro expansion is a compile time
+error.
 
 
 The old grammar in bnf like form:
