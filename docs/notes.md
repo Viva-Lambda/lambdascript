@@ -150,12 +150,12 @@ Usage examples in new grammar:
 ;; with abstractions
 
 (|- MyContext.(
-    (:int x)
-    (:float y)
-    (:float(2) xs) ;; equals(float float)
-    (:int(6) ys) ;; equals (int int int int int int)
-    (:str z)
-    (:str(3) zs) ;; equals (str str str)
+    (:int x),
+    (:float y),
+    (:float(2) xs), ;; equals(float float)
+    (:int(6) ys), ;; equals (int int int int int int)
+    (:str z),
+    (:str(3) zs), ;; equals (str str str)
     (:bool f(arg1: bool arg2: bool))
     )
 )
@@ -164,10 +164,10 @@ Usage examples in new grammar:
 ;; which do not contain duplicates using bind statements
 
 ;; Let's define some contexts
-(|- MyContextA.( (:int a) (:float b) ))
-(|- MyContextB.( (:int c) (:float d) ))
-(|- MyContextC.( (:int e) (:float f) ))
-(|- MyContextD.( (:float a) (:float g) ))
+(|- MyContextA.( (:int a), (:float b) ))
+(|- MyContextB.( (:int c), (:float d) ))
+(|- MyContextC.( (:int e), (:float f) ))
+(|- MyContextD.( (:float a), (:float g) ))
 
 ;; the following is valid
 (:= MyContextC.(MyContextA MyContextB))
@@ -178,18 +178,18 @@ Usage examples in new grammar:
 ;; record declaration. Records hold heterogeneous data bind to names
 
 (:# MyRecord.(
-    (:int a.(4))
-    (:float b.(3.7))
-    (:float(4) as.(5.7 5.3 81.0 -2.5))
-    (:int(4) bs.(5 9 70 2))
+    (:int a.(4)),
+    (:float b.(3.7)),
+    (:float(4) as.(5.7, 5.3, 81.0, -2.5))
+    (:int(4) bs.(5, 9, 70, 2))
     (:str c.("string"))
-    (:str(3) cs.("string" "m string" "n string"))
+    (:str(3) cs.("string", "m string", "n string"))
     ) 
 )
 
 ;; this creates accessor functions automatically so we have
 (a MyRecord) ;; gives 4
-(as MyRecord) ;; gives (5.7 5.3 81.0 -2.5)
+(as MyRecord) ;; gives (5.7, 5.3, 81.0, -2.5)
 
 ;; we can also declare records partially
 (:# MyOtherRecord(6) ;; we have six slots for binding abstractions
@@ -198,12 +198,12 @@ Usage examples in new grammar:
 ;; binding abstractions to partially declared records is very easy
 ;; suppose we want to have something like the following at the end
 (:# MyOtherRecord.(
-    (:int a.(4))
-    (:float b.(3.7))
-    (:float(4) as.(5.7, 5.3, 81.0, -2.5))
-    (:int(4) bs.(5, 9, 70, 2))
-    (:str c.("string"))
-    (:str(3) cs.("string" "m string" "n string"))
+    (:int a.(4)),
+    (:float b.(3.7)),
+    (:float(4) as.(5.7, 5.3, 81.0, -2.5)),
+    (:int(4) bs.(5, 9, 70, 2)),
+    (:str c.("string")),
+    (:str(3) cs.("string", "m string", "n string"))
     )
 )
 ;; we need to declare them as the following:
@@ -214,10 +214,10 @@ Usage examples in new grammar:
 (:# MyOtherRecord.a)
 
 (:# MyOtherRecord.(:float b.(3.7)))
-(:# MyOtherRecord.(:float(4) as.(5.7 5.3 81.0 -2.5)))
-(:# MyOtherRecord.(:int(4) bs.(5 9 70 2)))
+(:# MyOtherRecord.(:float(4) as.(5.7,5.3,81.0, -2.5)))
+(:# MyOtherRecord.(:int(4) bs.(5,9,70,2)))
 (:# MyOtherRecord.(:str c.("string")))
-(:# MyOtherRecord.(:str(4) cs.("string" "m string" "n string")))
+(:# MyOtherRecord.(:str(4) cs.("string", "m string", "n string")))
 
 
 ;; if all slots are not bind with expressions the compiler will generate
@@ -260,35 +260,30 @@ Usage examples in new grammar:
 (:# MRecB.(fn2))
 (:# MRecB.(:bool f(arg: bool arg2: bool).(|| arg arg2)))
 
-;; notice that abstractions can produce records that are previously declared
-(:# RecordA
-    (:int x.(0))
-    (:int y.(0))
-    (:float z.(2))
-    (:int f.(arg1: int arg2: int))
-)
-(:RecordA
-    contMaker(x_: int, y_: int, z_1: float, z_2: float).(
-        (:= RecordA.(
-                x.(x_)
-                y.(y_)
-                z.(z_1 z_2)
-                f.(:int (arg1: int arg2: int).(+ (* arg1 x_) (* arg2 y_)))
-            )
-        )
-    )
-)
 ;; if the record is previously not declared, trying to produce it would result
 ;; in compile time error
 
 ;; now let's see flow binding
-(:int f1.(4)) ;; abstraction
-(:int f2.(-1)) ;; abstraction
-(:int f3.(7)) ;; abstraction
 
-(:= MyContext(f1).( ;; flow binding
-        (4).(f2) ;; if f1 outputs 4 f2 is evaluated afterwards
-        (_).(f3) ;; otherwise f3 evaluated
+(:int f1)
+(:= f1.(4))
+
+(:int f2(int, int))
+(:= f2(arg1, arg2).(+ arg1 arg2))
+
+(:int f3)
+(:= f3.(7))
+
+;; exclusive-or flow binding
+(|> f1.( 
+        (4).(f2(8, 1)), ;; if f1 outputs 4 f2 is evaluated afterwards
+        (_).(f3)  ;; otherwise f3 evaluated
+    )
+)
+;; and flow binding
+(&> f1.( 
+        (f2(4, 5)), ;; evaluate both abstractions in parallel after f1 
+        (f3)  ;;
     )
 )
 
@@ -335,20 +330,11 @@ Usage examples in new grammar:
 
 '(@^ (@$ MyMacro)) ;; results in MyContC for example
 
-
-;; change its operator
-
-;; change its name
-
-;; change domain
-
-;; change predicates
-
 ```
 
 Constructs of the language:
 
-flow statements: goto statements on steroids
+flow bindings: goto statements on steroids
 context: holds typing information with respect to some evaluation context.
 abstraction: corresponds to procedures.
 record: corresponds more or less structs in C-like languages.
@@ -658,7 +644,7 @@ Here is an example with a slightly more complex context and an abstraction:
 (:int a(int))
 (:= a(arg).(* 2 arg))
 
-(:= Rangeable(a).(
+(:= Interpolatable(a).(
     bounds.(a (-4), a 4),
     interpolate(min, max).(+ min (* (a min) (- max min)))
     )
