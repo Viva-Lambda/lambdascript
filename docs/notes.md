@@ -2,122 +2,6 @@
 
 The new grammar in bnf like form
 
-```
-program := <expression> <expression>*
-
-expression := <constant> 
-            | <abstraction-declaration>
-            | <call-expression>
-
-
-get := <constant> | <call-expression>
-call-expression := <varname> | <application>
-
-
-constant := <bool> | <number> | <string>
-bool := true | false
-number := <int> | <real>
-int := 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9
-real := <int>+.<int>+
-string := " any unicode character that does not break quotes "
-
-varname := <alphabetic>+<numeric>* | alphabetic>+_*<numeric>*_*
-alphabetic := [a-zA-Z]
-numeric := <int>
-
-abstraction-declaration := <procedure-declaration>
-                         | <context-declaration>
-                         | <record-declaration>
-                         | <bind-declaration>
-
-lambda-body := (<expression>*)
-lambda-arguments := (<identifier>*)
-lambda-signature := <in-marker><codomain-indicator>
-lambda-declaration := (<lambda-signature> <lambda-arguments><s-m><lambda-body>)
-procedure := (<lambda-signature> <abstraction-name><lambda-arguments><s-m><lambda-body>)
-codomain-indicator := <typename>
-abstraction-name := <varname>
-identifier := <varname><in-marker> <typename>
-in-marker := :
-typename := <base-typename> | <compound-typename>
-base-typename := <constant-typename>
-constant-typename := <numeric-typename> | <string-typename> | <bool-typename>
-numeric-typename := int | float
-string-typename := str
-bool-typename := bool
-substitute-marker := <s-m>
-s-m := .
-compound-typename := <record-name>
-
-bind-declaration := <record-bind> | <flow-bind> | <abstraction-bind>
-
-record-bind := (:= <record-name><s-m>( <record-element>+ ))
-record-element := <abstraction-member> | <literal-member> 
-abstraction-member := <record-varname><s-m><lambda-declaration>
-record-name := <varname>
-record-varname := <varname>
-literal-member := <record-varname><s-m>(<constant> | <record-name>)
-
-flow-bind := (:= <context-name>(<abstraction-name>)<s-m>(<signaled-expression>+))
-signaled-expression := <explicit-context-declaration>
-                     | <implicit-context-declaration>
-
-explicit-context-declaration := (<signal>)<s-m>(<abstraction-name> <context-name>)
-implicit-context-declaration := (<signal>)<s-m>(<abstraction-name>)
-signal := <constant> | <default-branch-marker>
-default-branch-marker := _
-
-abstraction-bind := (:= <abstraction-name><s-m><abstraction-name>)
-
-context-declaration := <full-context-declaration>
-full-context-declaration := (<basis-marker> <context-name><s-m>(<type-assumption>+))
-basis-marker := |-
-type-assumption := (<in-marker><predicate> <subject>)
-predicate := <typename>
-subject := <varname>
-
-record-declaration := <full-record-declaration> | <partial-record-declaration>
-full-record-declaration := (<record-marker> <record-name><s-m>(<record-member>+))
-partial-record-declaration := <partial-recod-header> <partial-record-member>+
-partial-record-header := (<record-marker> <record-name><s-m>(<int>+))
-partial-recod-member := (<record-marker> <record-name><s-m>(<record-member>))
-record-marker := :#
-
-
-application := <fetch-app> | <numeric-app> | <abstract-app>
-fetch-app := (<fetch-operator>)
-           | (<fetch-operator> <abstraction-name>)
-           | (<fetch-operator> <abstraction-name><in-marker><context-name>)
-
-fetch-operator := $
-
-numeric-app := <arithmetic-app> | <compare-app>
-arithmetic-app := (<arithmetic-operator> <get>+)
-compare-app := (<compare-operator> <get>) | (<compare-operator> <get> <get>)
-arithmetic-operator := <plus> | <multiply> | <minus> | <divide> | <power>
-
-plus := +
-minus := -
-divide := /
-multiply := *
-power := ^
-
-compare-operator := <or> | <and> | <equal> | <not> | <greater>
-
-not := ~
-equal := ==
-or := ||
-and := &&
-greater := >
-
-abstract-app := (<operator> <operand>*)
-operator := <free-operator> | <bounded-operator>
-free-operator := <abstraction-name>
-bounded-operator := <context-name>(<abstraction-name>)
-operand := <get>
-
-```
-
 `f x.x + 2` => `: int f(x: int) = x + 2`
 
 Usage examples in new grammar:
@@ -334,11 +218,153 @@ Usage examples in new grammar:
 
 Constructs of the language:
 
-flow bindings: goto statements on steroids
+module: basic reusable blocks of lambda script. Module name must be specified
+at the beginning of program. Along with exported functions.
+
+flow bindings: goto statements on steroids `|`
+
 context: holds typing information with respect to some evaluation context.
-abstraction: corresponds to procedures.
+related operator: `|`
+
+abstraction: corresponds to procedures. Related operator `:`
+
 record: corresponds more or less structs in C-like languages.
+array: corresponds to more or less arrays in C-like languages, monolithic
+blocks of homogeneous data
+
 macros: basic metaprogramming facilities
+
+
+Operators
+---------
+
+Operators are the fundamental signals that is used by the compiler to parse
+the source code.
+Each construct of the language has an operator associated to it.
+
+Abstractions use `:`:
+For abstractions it is `:`. Once we see the column, we can assume that there
+is something related to types and thus something related to abstractions over
+those types. For example in `(:int f(int, float))` the column directly
+signals us that this is an abstraction, `int` later on shows us that this is
+not a record abstraction but a function space typed abstraction whose output
+is an integer.
+Whereas in `(:# MyRecA.((:int a.(4)), (:float b).(3.7) ))` the column shows us
+again that this is an abstraction, `#` later on shows us that this is record
+abstraction which has accessory abstractions that are obliged to use MyRecA
+typed value as input for outputting their expressions
+
+Context use `|`:
+
+Macros use `#`:
+
+Flow statements use `>`:
+
+Module statements use `!`
+
+Modules
+-------
+
+Modules are the building blocks of reusable code in LambdaScript. Their main
+purpose is to show reachable abstractions of a given program. One can export
+abstractions, records, and contexts.
+
+Following module declarations assume the following file structure:
+
+- src/
+  - MyLambda
+    - Module1
+      - MyFileName.lambda
+    - Module2
+      - MySomeOtherFile.lambda
+
+- config.json: 
+Contains current package name, author name, location of third party packages,
+etc.
+
+
+The module declaration happens as follows:
+
+```clojure
+! MyFileName (f, MyRecA, g)
+
+(:int f(int, int))
+(:= f(x, y).(/ (* x 2) (+ y 3)))
+
+(:# MyRecA.(
+    (:int a.(4)),
+    (:float b).(3.7),
+    (:float(4) as.(5.7, 5.3, 81.0, -2.5)),
+    (:int(4) bs.(5, 9, 70, 2)),
+    (:str c.("string")),
+    (:str(3) cs.("string" "m string" "n string"))
+    )
+)
+
+(:int g(int, int))
+(:= g(x, y).(/ (* x 2) (+ y 3)))
+
+```
+
+If no abstraction is specified we assume that all abstractions are exported.
+
+
+Importing abstractions from another module is done the following way:
+
+```clojure
+! MySomeOtherFile (h, MyRecB, m) ;; this file
+!: /MyLambda/Module1/MyFileName (f, MyRecA) ;; import from local folder
+!: SomePackage/ModuleX/Funcs ;; import from some third party package
+
+(:int h(int, int))
+(:= h(x, y).(f x y))
+
+(:# MyRecB.(
+    (:int a.(4)),
+    (:float b).(3.7),
+    (:float(4) as.(5.7, 5.3, 81.0, -2.5)),
+    (:int(4) bs.(5, 9, 70, 2)),
+    (:str c.("string")),
+    (:str(3) cs.("string" "m string" "n string"))
+    )
+)
+
+(:int m(int, int))
+(:= m(x, y).(/ (* x 2) (+ y 3)))
+
+```
+If we don't specify anything after the imported module, we import whatever the
+module is exporting.
+
+One can use qualified imports for avoiding name clashes:
+
+```clojure
+! MySomeOtherFile (h, MyRecB, m) ;; this file
+!: /MyLambda/Module1/MyFileName (!MyN(f, MyRecA)) ;; import from local folder
+!: SomePackage/ModuleX/Funcs (!MyOtherN)
+
+(:int h(int, int))
+(:= h(x, y).(!MyN:f x y))
+
+(:# MyRecB.(
+    (:int a.(4)),
+    (:float b).(3.7),
+    (:float(4) as.(5.7, 5.3, 81.0, -2.5)),
+    (:int(4) bs.(5, 9, 70, 2)),
+    (:str c.("string")),
+    (:str(3) cs.("string" "m string" "n string"))
+    )
+)
+
+(:int m(int, int))
+(:= m(x, y).(/ (* x 2) (+ y 3)))
+
+```
+
+Notice that we are not specifying any names after the third import statements
+name declaration. This means that all functions exported by Funcs module needs
+to use MyOtherN prefix in MySomeOtherFile module.
+
 
 Types
 ------
@@ -715,13 +741,13 @@ an example:
 (:= f3.(7))
 
 ;; exclusive-or flow binding
-(|> f1.( 
+(>|| f1.( 
         (4).(f2), ;; if f1 outputs 4 f2 is evaluated afterwards
         (_).(f3)  ;; otherwise f3 evaluated
     )
 )
 ;; and flow binding
-(&> f1.( 
+(>&& f1.( 
         (f2), ;; evaluate both abstractions in parallel after f1 
         (f3)  ;;
     )
@@ -757,13 +783,13 @@ example:
 (:= f3.(7))
 
 ;; exclusive-or flow binding
-(|> f1.( 
+(>|| f1.( 
         (4).(f2(8, 1)), ;; if f1 outputs 4 f2 is evaluated afterwards
         (_).(f3)  ;; otherwise f3 evaluated
     )
 )
 ;; and flow binding
-(&> f1.( 
+(>&& f1.( 
         (f2(4, 5)), ;; evaluate both abstractions in parallel after f1 
         (f3)  ;;
     )
@@ -786,13 +812,13 @@ In the case of abstractions, we can use the following:
 (:= f4(arg1, arg2).(+ arg1 arg2))
 
 ;; exclusive-or flow binding
-(|> f1.( 
+(>|| f1.( 
         (4).(f2(f4, 8, 1)), ;; if f1 outputs 4 f2 is evaluated afterwards
         (_).(f3)  ;; otherwise f3 evaluated
     )
 )
 ;; and flow binding
-(&> f1.( 
+(>&& f1.( 
         (f2(f4, 4, 5)), ;; evaluate both abstractions in parallel after f1 
         (f3)  ;;
     )
@@ -872,7 +898,7 @@ following:
 ;; a function like macro
 @MyInc((x: int).(+ x 1))
 
-@MyRecAMac(:# MyRecA.( (:int'(@ MyInc(3)) a)))
+@MyRecAMac(:# MyRecA.( (:int'((@ MyInc(3))) a)))
 
 @MyRecBMac(:# MyRecB.( (:int'(@ MyInc( '(@$ ( @> (@^ (@$ MyRecAMac)))) )) a)))
 
