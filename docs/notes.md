@@ -1,9 +1,5 @@
 # Design Notes
 
-The new grammar in bnf like form
-
-`f x.x + 2` => `: int f(x: int) = x + 2`
-
 Usage examples in new grammar:
 
 ```clojure
@@ -61,7 +57,7 @@ Usage examples in new grammar:
 
 ;; record declaration. Records hold heterogeneous data bind to names
 
-(:# MyRecord.(
+(:& MyRecord.(
     (:int a.(4)),
     (:float b.(3.7)),
     (:float(4) as.(5.7, 5.3, 81.0, -2.5))
@@ -76,12 +72,12 @@ Usage examples in new grammar:
 (as MyRecord) ;; gives (5.7, 5.3, 81.0, -2.5)
 
 ;; we can also declare records partially
-(:# MyOtherRecord(6) ;; we have six slots for binding abstractions
+(:& MyOtherRecord(6) ;; we have six slots for binding abstractions
 )
 
 ;; binding abstractions to partially declared records is very easy
 ;; suppose we want to have something like the following at the end
-(:# MyOtherRecord.(
+(:& MyOtherRecord.(
     (:int a.(4)),
     (:float b.(3.7)),
     (:float(4) as.(5.7, 5.3, 81.0, -2.5)),
@@ -91,17 +87,17 @@ Usage examples in new grammar:
     )
 )
 ;; we need to declare them as the following:
-(:# MyOtherRecord(6)
+(:& MyOtherRecord(6)
 )
 
 (:int a.(4))
-(:# MyOtherRecord.a)
+(:& MyOtherRecord.a)
 
-(:# MyOtherRecord.(:float b.(3.7)))
-(:# MyOtherRecord.(:float(4) as.(5.7,5.3,81.0, -2.5)))
-(:# MyOtherRecord.(:int(4) bs.(5,9,70,2)))
-(:# MyOtherRecord.(:str c.("string")))
-(:# MyOtherRecord.(:str(4) cs.("string", "m string", "n string")))
+(:& MyOtherRecord.(:float b.(3.7)))
+(:& MyOtherRecord.(:float(4) as.(5.7,5.3,81.0, -2.5)))
+(:& MyOtherRecord.(:int(4) bs.(5,9,70,2)))
+(:& MyOtherRecord.(:str c.("string")))
+(:& MyOtherRecord.(:str(4) cs.("string", "m string", "n string")))
 
 
 ;; if all slots are not bind with expressions the compiler will generate
@@ -221,7 +217,7 @@ Constructs of the language:
 module: basic reusable blocks of lambda script. Module name must be specified
 at the beginning of program. Along with exported functions.
 
-flow bindings: goto statements on steroids `|`
+flow statements: goto statements on steroids related operator `>`
 
 context: holds typing information with respect to some evaluation context.
 related operator: `|`
@@ -249,14 +245,15 @@ those types. For example in `(:int f(int, float))` the column directly
 signals us that this is an abstraction, `int` later on shows us that this is
 not a record abstraction but a function space typed abstraction whose output
 is an integer.
-Whereas in `(:# MyRecA.((:int a.(4)), (:float b).(3.7) ))` the column shows us
-again that this is an abstraction, `#` later on shows us that this is record
+Whereas in `(:& MyRecA.((:int a.(4)), (:float b).(3.7) ))` the column shows us
+again that this is an abstraction, `&` later on shows us that this is record
 abstraction which has accessory abstractions that are obliged to use MyRecA
-typed value as input for outputting their expressions
+typed value as input for outputting their expressions. It is a product type.
+One can read it as `MyRecA` is both `int` type **and** `float` type.
 
 Context use `|`:
 
-Macros use `#`:
+Macros use `@`:
 
 Flow statements use `>`:
 
@@ -278,9 +275,9 @@ Following module declarations assume the following file structure:
     - Module2
       - MySomeOtherFile.lambda
 
-- config.json: 
+- config.json:
 Contains current package name, author name, location of third party packages,
-etc.
+keyword mappings etc.
 
 
 The module declaration happens as follows:
@@ -417,7 +414,7 @@ Using abstraction in a declaration means including abstraction's typing
 judgement for example:
 
 ```clojure
-(:int f2( (:int float, float), float, float) )
+(:int f2( (:int (float, float)), float, float) )
 (:= f2(fn, a, b).(fn a b))
 ```
 Here the `fn` is the abstraction which substitutes two floating
@@ -449,9 +446,9 @@ Here is full declaration example with default values:
 
 ```clojure
 
-(:# MyRecord.(
+(:& MyRecord.(
     (:int a.(4)),
-    (:float b).(3.7),
+    (:float b.(3.7)),
     (:float(4) as.(5.7, 5.3, 81.0, -2.5)),
     (:int(4) bs.(5, 9, 70, 2)),
     (:str c.("string")),
@@ -471,7 +468,7 @@ values:
 ```clojure
 
 ;; suppose we want to have something like this at the end
-(:# MyOtherRecord.(
+(:& MyOtherRecord.(
     (:int a.(4)),
     (:float b.(3.7)),
     (:float(4) as.(5.7, 5.3, 81.0, -2.5)),
@@ -481,23 +478,23 @@ values:
     )
 )
 ;; we need to declare them as the following:
-(:# MyOtherRecord(6) ;; a record with six slots for abstractions
+(:& MyOtherRecord(6) ;; a record with six slots for abstractions
 )
 
 (:int a) ;; some free abstraction bound to base context
 (:= a.(4))
 
-(:# MyOtherRecord.a)
+(:& MyOtherRecord.a)
 
-(:# MyOtherRecord.(:float b.(3.7)))
-(:# MyOtherRecord.(:float(4) as.(5.7, 5.3, 81.0, -2.5)))
-(:# MyOtherRecord.(:int(4) bs.(5, 9, 70, 2)))
-(:# MyOtherRecord.(:str c.("string")))
-(:# MyOtherRecord.(:str(3) cs.("string", "m string", "n string")))
+(:& MyOtherRecord.(:float b.(3.7))) ;; named literal
+(:& MyOtherRecord.(:float(4) as.(5.7, 5.3, 81.0, -2.5)))
+(:& MyOtherRecord.(:int(4) bs.(5, 9, 70, 2)))
+(:& MyOtherRecord.(:str c.("string")))
+(:& MyOtherRecord.(:str(3) cs.("string", "m string", "n string")))
 ```
 
 Notice that this is not a binding but a declaration so we use the record
-declaration operator `:#` and not `:=`.
+declaration operator `:&` and not `:=`.
 
 Partial declaration allows for attaching base context abstractions to multiple
 records easily. It helps us to compose base context abstractions with records.
@@ -508,7 +505,7 @@ Now let's see examples with binding. Here is a full declaration followed by
 binding of abstractions to records:
 
 ```clojure
-(:# MyRecA.(
+(:& MyRecA.(
     (:int a),
     (:int(4) bs),
     (:float b),
@@ -534,7 +531,7 @@ We can also have default function space typed abstractions with default
 values during the record declaration.
 
 ```clojure
-(:# MyRecA.(
+(:& MyRecA.(
     (:int fn(arg: float, arg2: float).(floor (+ arg arg2)))
 )
 )
@@ -546,7 +543,7 @@ Binding a record with a particular set of values to another abstraction is
 done in the same way as in regular abstractions. Here is an example:
 
 ```clojure
-(:# MyRecA.(
+(:& MyRecA.(
     (:int a),
     (:int(4) bs),
     (:float b),
@@ -575,18 +572,18 @@ In the case of records with fields who are themselves records. It would go
 something like this:
 
 ```clojure
-(:# MyRecA.(
+(:& MyRecA.(
     (:int f(int, int))
     (:float b)
     )
 )
 
-(:# MyRecB.(
+(:& MyRecB.(
     (:int g(int, int))
     (:float a)
     )
 )
-(:# MyRecC.(
+(:& MyRecC.(
     (:MyRecA mra)
     (:MyRecB mrb)
     )
@@ -612,7 +609,6 @@ something like this:
         mrb(MyRecC).(recB)
     )
 )
-
 ```
 
 Contexts
@@ -933,61 +929,118 @@ declared. Shadowing of free abstractions by macro expansion is a compile time
 error.
 
 
-The old grammar in bnf like form:
+The new grammar in bnf like form:
+
+first very basic tokens with single characters that help to organize the code
+blocks. Macros are essentially ways to work with these. Parenthesis delimit
+the block, separators split the contents of the block.
+```
+leftpar := <unique-utf8-char> | (
+rightpar := <unique-utf8-char> | )
+list separator := <unique-utf8-char> | ,
+bind separator := <unique-utf8-char> | .
+b-s := <bind separator>
+rpar := <rightpar>
+lpar := <leftpar>
+l-s := <list separator>
+```
+
+module related constructs:
+```
+module statement := <module declaration> <module import>*
+module declaration :=  <module declaration and export> | <module name declaration>
+module declaration and export := <module operator> <module name> <export statement>
+module name declaration := <module operator> <module name>
+module operator := <unique-utf8-string> | !
+
+export statement := <lpar> <exported-name> <rpar> | <export list>
+export list := <export list start> <exported content>* <export list end>
+export list start := <lpar>
+exported content := <exported-name> <l-s>
+exported list end := <exported-name> <rpar>
+
+module import := <module import specific> | <module import general>
+module import general := <module import operator> <module import path>
+module import specific := <module import general> <import statement>
+import statement := <import list> | <qualified import list> | <qualification statement>
+
+import list := <import list start> <import list content>* <import list end>
+import list start := <lpar>
+import list content := <imported-name> <l-s>
+import list end := <imported-name> <rpar>
+
+qualified import list := <lpar> <module operator> <imported name> <import list> <rpar>
+qualification statement := <lpar> <module operator> <imported name> <rpar>
+
+import path := <local import path> | <package import path>
+local import path := <path separator> <path content>
+package import path := <path content>
+path content := <path content start>* <path content end>
+path content start := <path name><path separator>
+path content end := <path name>
+path separator := <unique-utf8-char> | /
+```
+
+abstraction related syntax: TODO specify imported abstractions syntax,
+qualified etc.
+```
+abstraction declaration := <lpar> <abstraction type> <abstraction name> <arg list> <rpar>
+abstraction type := <type operator> <type name>
+type operator := <unique-utf8-char> | :
+arg list := <empty arg list> | <arg list start> <arg list content>* <arg list end>
+arg list start := <lpar>
+arg list content := <type indicator> <l-s>
+arg list end := <type indicator> <rpar>
+
+type indicator := <simple type indicator> 
+                | <function space type indicator>
+
+function space type indicator := <lpar> <abstraction type> <arg list> <rpar>
+simple type indicator := <type name>
+empty arg list := <null>
 
 ```
-Here is the grammar of the language
 
-expression := <get> | <statement>
+Record related syntax: TODO rework the bounded abstractions
 
-statement := <conditional>
-            | <assignment>
-            | <procedure definition> 
-            | <loop>
-            | <procedure call>
-            | <sequence>
+```
+record declaration := <full record declaration> | <partial record declaration>
 
+full record declaration := <full record start> <record name> <b-s> <record bind list> <rpar>
+full record start := <type operator> <record signal>
+record signal := <unique-utf8-char> | &
+record bind list := <record list start> <record list content>* <record list end>
+record list start := <lpar>
+record list content := <bounded abstraction declaration> <l-s>
+record list end := <bounded abstraction declaration> <rpar>
+bounded abstraction declaration := <bounded declaration with default value> 
+                                 | <bounded declaration>
 
--- expressions
-get := <identifier name> | <literal>
+bounded declaration with default value := <bounded named literal> 
+                                        | <bounded abstraction value>
 
--- literals
-literal := <boolean> | <number> | <string>
+bounded named literal := <bounded array literal> 
+                       | <bounded simple literal>
+                       | <bounded record literal>
 
-number := <digit>+ | <digit>+.<digit>+
-boolean := true | false
-string := "...any number of char"
+bounded array literal := <babstraction literal start> <array values> <rpar>
+babstraction literal start := <lpar> <array type specifier> <array name> <b-s>
+array type specifier := <type operator> <type name> <lpar> <number>+ <rpar>
+array values := <array value start> <array value>* <array value end>
+array value start := <lpar>
+array value := <literal> <l-s>
+array value end := <literal> <l-s> <literal> <rpar>
 
-identifier := <identifier name> <typename>
-identifier name := <varname>
-varname := <letter>+ <digit>*
-letter := a | b | c | d | e | f | ... | A | B | ... | Z
-digit := 0 | ... | 9
-typename := : <varname>
+bounded simple literal := <type operator> <type name> <literal name> <b-s>
+```
 
-procedure call := (do/yap <operator> <operand>)
-operator := opchar | <varname>
-opchar := + | - | * | / | % | < | > | & | \| | !
-operand := (<typed expression>*)
+The rest: TODO rework the expression, half of that thing is unrelated to
+application.
 
-assignment := ( def/tanim <identifier> <typed expression> )
+```
+program := <module statement>+ <expression>+
 
-typed expression :=  <literal> | <identifier name> | <procedure call>
-
-conditional := (eger/if <test> <consequent> <alternate>)
-test := (<literal>) | <procedure call> | (<varname>)
-consequent := (then/ise <sequence>)
-alternate := (else/yoksa <sequence>)
-
-loop := (loop/dongu <test> <consequent>)
--- (loop/dongu (do/yap < (1.6 6.0)) (then/ise fdsak,m))
-
-procedure definition := (fn/edim <identifier> <arguments> <body>)
-arguments := (<identifier>*)
-body := <sequence>
-
-sequence := ( seq/liste <expression>+ )
-
-
-
+expression := <declaration> | <binding> | <statement> | <application>
+declaration := <abstraction declaration> | <record declaration>
+             | <context declaration> | <macro declaration>
 ```
