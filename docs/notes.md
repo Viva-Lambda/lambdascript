@@ -305,7 +305,6 @@ The module declaration happens as follows:
 
 If no abstraction is specified we assume that all abstractions are exported.
 
-
 Importing abstractions from another module is done the following way:
 
 ```clojure
@@ -337,8 +336,8 @@ One can use qualified imports for avoiding name clashes:
 
 ```clojure
 ! MySomeOtherFile (h, MyRecB, m) ;; this file
-!: /MyLambda/Module1/MyFileName (!MyN(f, MyRecA)) ;; import from local folder
-!: SomePackage/ModuleX/Funcs (!MyOtherN)
+!: /MyLambda/Module1/MyFileName (!MyN(f, MyRecA)) ;; qualified import from local folder
+!: SomePackage/ModuleX/Funcs (!MyOtherN) ;; qualified import from package
 
 (:int h(int, int))
 (:= h(x, y).(!MyN:f x y))
@@ -934,15 +933,19 @@ The new grammar in bnf like form:
 first very basic tokens with single characters that help to organize the code
 blocks. Macros are essentially ways to work with these. Parenthesis delimit
 the block, separators split the contents of the block.
+
+Separators:
 ```
 leftpar := <unique-utf8-char> | (
 rightpar := <unique-utf8-char> | )
 list separator := <unique-utf8-char> | ,
 bind separator := <unique-utf8-char> | .
+type separator := <unique-utf8-char> | :
 b-s := <bind separator>
 rpar := <rightpar>
 lpar := <leftpar>
 l-s := <list separator>
+t-s := <type separator>
 ```
 
 module related constructs:
@@ -962,6 +965,7 @@ exported list end := <exported-name> <rpar>
 module import := <module import specific> | <module import general>
 module import general := <module import operator> <module import path>
 module import specific := <module import general> <import statement>
+module import operator := <module operator> <type separator>
 import statement := <import list> | <qualified import list> | <qualification statement>
 
 import list := <import list start> <import list content>* <import list end>
@@ -972,7 +976,7 @@ import list end := <imported-name> <rpar>
 qualified import list := <lpar> <module operator> <imported name> <import list> <rpar>
 qualification statement := <lpar> <module operator> <imported name> <rpar>
 
-import path := <local import path> | <package import path>
+module import path := <local import path> | <package import path>
 local import path := <path separator> <path content>
 package import path := <path content>
 path content := <path content start>* <path content end>
