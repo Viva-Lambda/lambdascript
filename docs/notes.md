@@ -379,7 +379,7 @@ members are just accessory procedures that output a literal value or another
 expression given the record.
 
 We adopt mostly simply typed lambda calculus as our typing system. Most of our
-notions follow: 
+notions follow:
 Barendregt, H.P., Dekkers, W. and Statman, R. (2013) Lambda calculus with
 types. Cambridge ; New York: Cambridge University Press (Perspectives in
 logic).
@@ -439,58 +439,56 @@ Record
 
 Record is essentially a struct. Meaning that it has some heterogeneous
 fields with names. They can be declared with default values. They can be
-declared in full at one go or in parts. Values can be bind to record fields.
+declared in parts.
+Once the declaration took place values can be bind to record fields through
+abstractions.
 
-Here is full declaration example with default values:
+### Record Declaration
+
+Here is a declaration example without default values:
 
 ```clojure
 
+;; a record with seven slots for abstractions
+
 (:& MyRecord.(
-    (:int a.(4)),
-    (:float b.(3.7)),
-    (:float(4) as.(5.7, 5.3, 81.0, -2.5)),
-    (:int(4) bs.(5, 9, 70, 2)),
-    (:str c.("string")),
-    (:str(3) cs.("string" "m string" "n string"))
+        (:int a), ;; integer variable like abstraction
+        (:float b), ;; float variable like abstraction
+        (:float(4) as), ;; float array like abstraction
+        (:int(4) bs), ;; int array like abstraction
+        (:str c), ;; string abstraction
+        (:str(3) cs), ;; string array like abstraction
+        (:int f(int, int)) ;; function like abstraction
     )
 )
+
 ```
 
-Notice that the members of the struct are in fact bounded abstractions. They
+Here is a declaration example with default values:
+
+```clojure
+
+(:int f1(int, int)) ;; declaration of abstraction
+
+(:& MyRecord.(
+        (:int a.(4)), ;; integer variable like abstraction
+        (:float b.(3.8)), ;; float variable like abstraction
+        (:float(4) as.(2.4, 27.1, 3.1, 0.4)), ;; float array like abstraction
+        (:int(4) bs.(4,5,30,7)), ;; int array like abstraction
+        (:str c.("string")), ;; string abstraction
+        (:str(3) cs.("my", "string", "is")), ;; string array like abstraction
+        (:int f(int, int).(f1)) ;; function like abstraction
+    )
+)
+
+(:= f1(x, y).(/ (* x 2) (+ y 3))) ;; binding of the abstraction
+
+```
+
+Notice that the members of the record are in fact bounded abstractions. They
 work as procedures that output their associated value given the record.  They
 work like the record syntax of Haskell. So in order to access the value `4`
 for example, one should do: `(a MyRecord)` which would yield 4.
-
-Partial declaration is also quite simple. Here is an example with default
-values:
-
-```clojure
-
-;; suppose we want to have something like this at the end
-(:& MyOtherRecord.(
-    (:int a.(4)),
-    (:float b.(3.7)),
-    (:float(4) as.(5.7, 5.3, 81.0, -2.5)),
-    (:int(4) bs.(5, 9, 70, 2)),
-    (:str c.("string")),
-    (:str(3) cs.("string" "m string" "n string"))
-    )
-)
-;; we need to declare them as the following:
-(:& MyOtherRecord(6) ;; a record with six slots for abstractions
-)
-
-(:int a) ;; some free abstraction bound to base context
-(:= a.(4))
-
-(:& MyOtherRecord.a)
-
-(:& MyOtherRecord.(:float b.(3.7))) ;; named literal
-(:& MyOtherRecord.(:float(4) as.(5.7, 5.3, 81.0, -2.5)))
-(:& MyOtherRecord.(:int(4) bs.(5, 9, 70, 2)))
-(:& MyOtherRecord.(:str c.("string")))
-(:& MyOtherRecord.(:str(3) cs.("string", "m string", "n string")))
-```
 
 Notice that this is not a binding but a declaration so we use the record
 declaration operator `:&` and not `:=`.
@@ -500,10 +498,22 @@ records easily. It helps us to compose base context abstractions with records.
 The example with `(:int a)` shows have an abstraction bound to a base
 context is composed with `MyOtherRecord`.
 
-Now let's see examples with binding. Here is a full declaration followed by
-binding of abstractions to records:
+If there is no default value bound by the developer, the compiler associates
+it is own default values wherever it is possible. The associated default
+values are empty values, such as "" for string, 0 for int, 0.0 for float,
+false for boolean. For function space typed abstractions we associate a
+default value of the return type. For fields whose types are records, we
+associate the default value deduced for records.
+
+### Record Binding
+
+Now let's see examples with binding. Binding a record with a particular set of
+values to another abstraction is done in the same way as in regular
+abstractions. Here is an example:
 
 ```clojure
+
+;; this is our record
 (:& MyRecA.(
     (:int a),
     (:int(4) bs),
@@ -515,58 +525,24 @@ binding of abstractions to records:
     )
 )
 
-(:= a(MyRecA).(4), bs(MyRecA).(1,2,3,4), b(MyRecA).(4.2),
-    as(MyRecA).(1.0,2.7,3.1,4.7), c(MyRecA).("my string"),
-    cs(MyRecA).("my string", "is", "awesome"),
-    f(MyRecA).((arg1: int, arg2: int).(+ (* arg1 arg1) arg2))
-)
-```
+(:MyRecA recAbs) ;; recAbs is an abstraction like (:int f3)
 
-Notice that the abstraction `f` contains only bounded variables. Thus it is
-closed. It is also possible to include free abstractions bounded to base
-typing context, or the context in which the binding takes place.
+(:int f1(int, int)) ;; declaration of abstraction
 
-We can also have default function space typed abstractions with default
-values during the record declaration.
-
-```clojure
-(:& MyRecA.(
-    (:int fn(arg: float, arg2: float).(floor (+ arg arg2)))
-)
-)
-```
-Here the bounded expression must use bounded variables. It must be a closed
-expression, not containing any free variables.
-
-Binding a record with a particular set of values to another abstraction is
-done in the same way as in regular abstractions. Here is an example:
-
-```clojure
-(:& MyRecA.(
-    (:int a),
-    (:int(4) bs),
-    (:float b),
-    (:float(4) as),
-    (:str c),
-    (:str(3) cs)
-    (:int f(int, int))
-    )
-)
-
-(:MyRecA recAbs)
-
-(:= recAbs.(:=
-        a(MyRecA).(4), bs(MyRecA).(1,2,3,4), b(MyRecA).(4.2),
-        as(MyRecA).(1.0,2.7,3.1,4.7), c(MyRecA).("my string"),
-        cs(MyRecA).("my string", "is", "awesome"),
-        f(MyRecA).((arg1, arg2).(+ (* arg1 arg1) arg2))
-    )
+;; bind in one go
+(:= a(recAbs).(4), bs(recAbs).(1,2,3,4), b(recAbs).(4.2),
+    as(recAbs).(1.0,2.7,3.1,4.7), c(recAbs).("my string"),
+    cs(recAbs).("my string", "is", "awesome"),
+    f(recAbs).(f1)
 )
 
 (a recAbs) ;; would yield 4 even if the abstraction has a different default
            ;; value
 
+(:= f1(x, y).(/ (* x 2) (+ y 3))) ;; binding of the abstraction
+
 ```
+
 In the case of records with fields who are themselves records. It would go
 something like this:
 
@@ -589,26 +565,31 @@ something like this:
 )
 (:MyRecA recA)
 
-(:= recA.(:=
-        f(MyRecA).((arg1, arg2).(+ (* arg1 arg1) arg2)),
-        b(MyRecA).(4.3)
-    )
+(:= f(recA).((arg1, arg2).(+ (* arg1 arg1) arg2)),
+    b(recA).(4.3)
 )
 (:MyRecB recB)
 
-(:= recB.(:=
-        g(MyRecB).((arg1, arg2).(+ (* arg1 arg1) arg2)),
-        a(MyRecB).(4.3)
-    )
+(:= g(recB).((arg1, arg2).(+ (* arg1 arg1) arg2)),
+    a(recB).(4.3)
 )
 (:MyRecC recC)
 
-(:= recC.(:=
-        mra(MyRecC).(recA),
-        mrb(MyRecC).(recB)
-    )
+(:= mra(recC).(recA),
+    mrb(recC).(recB)
 )
+
 ```
+
+Notice that both in declaration and in binding, everything is done in one go.
+It is trivial to implement a partial declaration system, or to implement
+separated declarations however there is the risk of confusing it with an
+override mechanism, which is simply not the case for both the declarations and
+bindings. Separating bindings might introduce a decision problem about which
+version is the intended version.  We can also separate declaration and
+bindings and generate a compile error if two bindings and/or declarations
+occur for the same abstraction in the record.
+
 
 Contexts
 --------
@@ -948,7 +929,7 @@ l-s := <list separator>
 t-s := <type separator>
 ```
 
-module related constructs:
+module related constructs (DONE):
 ```
 module statement := <module declaration> <module import>*
 module declaration :=  <module declaration and export> | <module name declaration>
@@ -986,11 +967,12 @@ path separator := <unique-utf8-char> | /
 ```
 
 abstraction related syntax: TODO specify imported abstractions syntax,
-qualified etc.
+qualified etc; abstraction body needs to be reworked.
 ```
 abstraction declaration := <lpar> <abstraction type> <abstraction name> <arg list> <rpar>
 abstraction type := <type operator> <type name>
-type operator := <unique-utf8-char> | :
+type operator := <type separator>
+t-o = <type operator>
 arg list := <empty arg list> | <arg list start> <arg list content>* <arg list end>
 arg list start := <lpar>
 arg list content := <type indicator> <l-s>
@@ -1002,6 +984,16 @@ type indicator := <simple type indicator>
 function space type indicator := <lpar> <abstraction type> <arg list> <rpar>
 simple type indicator := <type name>
 empty arg list := <null>
+
+abs binding := <lpar> <type operator> <bind operator> <abstraction binding> <rpar>
+abstraction binding := <abstraction argument> <b-s> <abstraction body>
+abstraction argument := <abstraction name> <argument name list> | <empty arg list>
+argument name list := <arg-n-start> <arg-n-content>* <arg-n-end>
+arg-n-start := <lpar>
+arg-n-content := <argument name> <l-s>
+arg-n-end := <argument name> <rpar>
+
+abstraction body := <application>+
 
 ```
 
