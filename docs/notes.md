@@ -595,9 +595,9 @@ Contexts
 --------
 
 Typing contexts. These are used for specifying the typing basis of
-abstractions. They can be used as type classes where typing judgements
-provide prototypes for abstractions. They are the main extension mechanism for
-adding new semantics to both free abstractions and records.
+abstractions. They can be used as type classes where typing judgements provide
+prototypes for abstractions. They are the main extension mechanism for adding
+new semantics to both free abstractions and records.
 
 Here is an example of a context declaration:
 
