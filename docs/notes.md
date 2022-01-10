@@ -425,7 +425,7 @@ shall see other examples.
 Here is a variable like abstraction:
 ```clojure
 (:int a)
-(:= a.(4))
+(:= a(4))
 ```
 
 Notice that there is no difference between an abstraction that binds some
@@ -495,10 +495,12 @@ abstractions. Here is an example:
 (:int f1(int, int)) ;; declaration of abstraction
 
 ;; bind in one go
-(:= a(recAbs).(4), bs(recAbs).(1,2,3,4), b(recAbs).(4.2),
-    as(recAbs).(1.0,2.7,3.1,4.7), c(recAbs).("my string"),
-    cs(recAbs).("my string", "is", "awesome"),
-    f(recAbs).(f1)
+(:= recAbs.(
+        a(4), bs(1,2,3,4), b(4.2),
+        as(1.0, 2.7, 3.1, 4.7), c("my string"),
+        cs("my string", "is", "awesome"),
+        f(f1)
+    )
 )
 
 (a recAbs) ;; would yield 4 even if the abstraction has a different default
@@ -513,37 +515,51 @@ something like this:
 
 ```clojure
 (:& MyRecA.(
-    (:int f(int, int))
+    (:int f(int, int)),
     (:float b)
     )
 )
 
 (:& MyRecB.(
-    (:int g(int, int))
+    (:int g(int, int)),
     (:float a)
     )
 )
+
 (:& MyRecC.(
-    (:MyRecA mra)
+    (:MyRecA mra),
     (:MyRecB mrb)
     )
 )
+
 (:MyRecA recA)
 
-(:= f(recA).((arg1, arg2).(+ (* arg1 arg1) arg2)),
-    b(recA).(4.3)
+;;
+
+(:int f1(int, int))
+(:int f2(int, int))
+
+(:= recA.(
+        f(f1), ;; lambda abstraction ??
+        b(4.3)
+    )
 )
 (:MyRecB recB)
 
-(:= g(recB).((arg1, arg2).(+ (* arg1 arg1) arg2)),
-    a(recB).(4.3)
+(:= recB.(
+    g(f2),
+    a(4.3)
 )
 (:MyRecC recC)
 
-(:= mra(recC).(recA),
-    mrb(recC).(recB)
+(:= recC.(
+        mra(recA),
+        mrb(recB)
+    )
 )
 
+(:= f1(arg1, arg2).(+ (* arg1 arg1) arg2))
+(:= f2(arg1, arg2).(* (+ arg1 arg1) arg2))
 ```
 
 Notice that both in declaration and in binding, everything is done in one go.
