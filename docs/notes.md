@@ -437,15 +437,13 @@ or bounded. Bounded abstractions can appear inside records and typing contexts.
 Record
 -------
 
-Record is essentially a struct. Meaning that it has some heterogeneous
-fields with names. They can be declared with default values. They can be
-declared in parts.
-Once the declaration took place values can be bind to record fields through
-abstractions.
+Record is essentially a struct. Meaning that it has some heterogeneous fields
+with names. Once the declaration took place values can be bind to record
+fields through abstractions.
 
 ### Record Declaration
 
-Here is a declaration example without default values:
+Here is a declaration example:
 
 ```clojure
 
@@ -464,46 +462,13 @@ Here is a declaration example without default values:
 
 ```
 
-Here is a declaration example with default values:
-
-```clojure
-
-(:int f1(int, int)) ;; declaration of abstraction
-
-(:& MyRecord.(
-        (:int a.(4)), ;; integer variable like abstraction
-        (:float b.(3.8)), ;; float variable like abstraction
-        (:float(4) as.(2.4, 27.1, 3.1, 0.4)), ;; float array like abstraction
-        (:int(4) bs.(4,5,30,7)), ;; int array like abstraction
-        (:str c.("string")), ;; string abstraction
-        (:str(3) cs.("my", "string", "is")), ;; string array like abstraction
-        (:int f(int, int).(f1)) ;; function like abstraction
-    )
-)
-
-(:= f1(x, y).(/ (* x 2) (+ y 3))) ;; binding of the abstraction
-
-```
-
 Notice that the members of the record are in fact bounded abstractions. They
-work as procedures that output their associated value given the record.  They
+work as procedures that output their associated value given the record. They
 work like the record syntax of Haskell. So in order to access the value `4`
 for example, one should do: `(a MyRecord)` which would yield 4.
 
 Notice that this is not a binding but a declaration so we use the record
 declaration operator `:&` and not `:=`.
-
-Partial declaration allows for attaching base context abstractions to multiple
-records easily. It helps us to compose base context abstractions with records.
-The example with `(:int a)` shows have an abstraction bound to a base
-context is composed with `MyOtherRecord`.
-
-If there is no default value bound by the developer, the compiler associates
-it is own default values wherever it is possible. The associated default
-values are empty values, such as "" for string, 0 for int, 0.0 for float,
-false for boolean. For function space typed abstractions we associate a
-default value of the return type. For fields whose types are records, we
-associate the default value deduced for records.
 
 ### Record Binding
 
