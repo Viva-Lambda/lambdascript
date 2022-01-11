@@ -219,7 +219,7 @@ at the beginning of program. Along with exported functions.
 
 flow statements: goto statements on steroids related operator `>`
 
-context: holds typing information with respect to some evaluation context.
+concept: holds typing information with respect to some evaluation context.
 related operator: `|`
 
 abstraction: corresponds to procedures. Related operator `:`
@@ -251,7 +251,7 @@ abstraction which has accessory abstractions that are obliged to use MyRecA
 typed value as input for outputting their expressions. It is a product type.
 One can read it as `MyRecA` is both `int` type **and** `float` type.
 
-Context use `|`:
+Concepts use `|`:
 
 Macros use `@`:
 
@@ -264,7 +264,7 @@ Modules
 
 Modules are the building blocks of reusable code in LambdaScript. Their main
 purpose is to show reachable abstractions of a given program. One can export
-abstractions, records, and contexts.
+abstractions, records, and concepts.
 
 Following module declarations assume the following file structure:
 
@@ -395,7 +395,7 @@ concept of variable in the sense of c or c++. Here is an example:
 
 ```clojure
 (:int f1(int, int)) ;; declaration of abstraction
-(:= f1(x, y).(/ (* x 2) (+ y 3))) ;; binding of the abstraction
+(:= f1(x, y) (/ (* x 2) (+ y 3))) ;; binding of the abstraction
 ```
 Notice that the abstractions have two components:
 
@@ -413,8 +413,8 @@ Using abstraction in a declaration means including abstraction's typing
 judgement for example:
 
 ```clojure
-(:int f2( (:int (float, float)), float, float) )
-(:= f2(fn, a, b).(fn a b))
+(:int f2( (:int (float, float)), float, float))
+(:= f2(fn, a, b) (fn a b))
 ```
 Here the `fn` is the abstraction which substitutes two floating
 points with an integer. Notice the "," between arguments. The "," is
@@ -425,11 +425,40 @@ shall see other examples.
 Here is a variable like abstraction:
 ```clojure
 (:int a)
-(:= a(4))
+(:= a (4))
 ```
 
 Notice that there is no difference between an abstraction that binds some
 arguments to an expression and this one which binds no arguments to a literal.
+
+Here is an array like abstraction:
+
+```clojure
+(:int(5) a)
+(:= a (4, 4, 3, 7, 0))
+```
+One can access to the elements of an array like abstraction with regular
+application expression:
+```clojure
+(:int(5) a)
+(:= a (4, 8, 3, 7, 0))
+(1 a) ;; outputs 8
+(0 a) ;; outputs 4
+```
+Array like abstractions are in fact records in disguise. You can think of an
+array like abstraction as the following:
+```clojure
+(:& A(
+    (:int 0),
+    (:int 1),
+    (:int 2),
+    (:int 3),
+    (:int 4),
+    )
+)
+(:A a)
+(:= a ( 0(4), 1(8), 2(3), 3(7), 4(0)))
+```
 
 Abstractions are the building blocks of LambdaScript. They can either be free
 or bounded. Bounded abstractions can appear inside records and typing contexts.
@@ -437,9 +466,9 @@ or bounded. Bounded abstractions can appear inside records and typing contexts.
 Record
 -------
 
-Record is essentially a struct. Meaning that it has some heterogeneous fields
-with names. Once the declaration took place values can be bind to record
-fields through abstractions.
+Record is essentially a stateless struct. Meaning that it has some
+heterogeneous fields with names. Once the declaration took place values can be
+bind to record fields through abstractions.
 
 ### Record Declaration
 
@@ -449,7 +478,7 @@ Here is a declaration example:
 
 ;; a record with seven slots for abstractions
 
-(:& MyRecord.(
+(:& MyRecord (
         (:int a), ;; integer variable like abstraction
         (:float b), ;; float variable like abstraction
         (:float(4) as), ;; float array like abstraction
@@ -479,14 +508,14 @@ abstractions. Here is an example:
 ```clojure
 
 ;; this is our record
-(:& MyRecA.(
-    (:int a),
-    (:int(4) bs),
-    (:float b),
-    (:float(4) as),
-    (:str c),
-    (:str(3) cs)
-    (:int f(int, int))
+(:& MyRecA (
+        (:int a),
+        (:int(4) bs),
+        (:float b),
+        (:float(4) as),
+        (:str c),
+        (:str(3) cs)
+        (:int f(int, int))
     )
 )
 
@@ -495,7 +524,7 @@ abstractions. Here is an example:
 (:int f1(int, int)) ;; declaration of abstraction
 
 ;; bind in one go
-(:= recAbs.(
+(:= recAbs (
         a(4), bs(1,2,3,4), b(4.2),
         as(1.0, 2.7, 3.1, 4.7), c("my string"),
         cs("my string", "is", "awesome"),
@@ -506,7 +535,7 @@ abstractions. Here is an example:
 (a recAbs) ;; would yield 4 even if the abstraction has a different default
            ;; value
 
-(:= f1(x, y).(/ (* x 2) (+ y 3))) ;; binding of the abstraction
+(:= f1(x, y) (/ (* x 2) (+ y 3))) ;; binding of the abstraction
 
 ```
 
@@ -514,19 +543,19 @@ In the case of records with fields who are themselves records. It would go
 something like this:
 
 ```clojure
-(:& MyRecA.(
+(:& MyRecA (
     (:int f(int, int)),
     (:float b)
     )
 )
 
-(:& MyRecB.(
+(:& MyRecB (
     (:int g(int, int)),
     (:float a)
     )
 )
 
-(:& MyRecC.(
+(:& MyRecC (
     (:MyRecA mra),
     (:MyRecB mrb)
     )
@@ -539,134 +568,98 @@ something like this:
 (:int f1(int, int))
 (:int f2(int, int))
 
-(:= recA.(
+(:= recA (
         f(f1), ;; lambda abstraction ??
         b(4.3)
     )
 )
 (:MyRecB recB)
 
-(:= recB.(
+(:= recB (
     g(f2),
     a(4.3)
+    )
 )
 (:MyRecC recC)
 
-(:= recC.(
+(:= recC (
         mra(recA),
         mrb(recB)
     )
 )
 
-(:= f1(arg1, arg2).(+ (* arg1 arg1) arg2))
-(:= f2(arg1, arg2).(* (+ arg1 arg1) arg2))
+(:= f1(arg1, arg2) (+ (* arg1 arg1) arg2))
+(:= f2(arg1, arg2) (* (+ arg1 arg1) arg2))
 ```
-
 Notice that both in declaration and in binding, everything is done in one go.
-It is trivial to implement a partial declaration system, or to implement
-separated declarations however there is the risk of confusing it with an
-override mechanism, which is simply not the case for both the declarations and
-bindings. Separating bindings might introduce a decision problem about which
-version is the intended version.  We can also separate declaration and
-bindings and generate a compile error if two bindings and/or declarations
-occur for the same abstraction in the record.
 
+Concepts
+---------
 
-Contexts
---------
+Concepts describe class of types.
 
-Typing contexts. These are used for specifying the typing basis of
-abstractions. They can be used as type classes where typing judgements provide
-prototypes for abstractions. They are the main extension mechanism for adding
-new semantics to both free abstractions and records.
-
-Here is an example of a context declaration:
+Here is an example for declaring a concept:
 
 ```clojure
 
-(|- Printable.(
-    (:str print),
-    (:str printNewLine),
-    )
-)
-
-```
-Notice that it is declared in fully in one go.
-
-Typing context can be bound to abstractions and records.
-Here is an example with an abstraction:
-
-```clojure
-
-(|- Printable.(
-    (:str print),
-    (:str printNewLine),
-    )
-)
-
-(:int a)
-(:= a.(4))
-(:= Printable(a).(
-    print.("a.(4)"),
-    printNewLine.("a.(4)\n"),
+;; declare a concept
+(|- Printable(:A) (
+    (:string toString(:A)),
+    (:string print),
     )
 )
 
 ```
 
-Here is an example with a slightly more complex context and an abstraction:
+The concept `Printable` takes type operator `:` along with placeholder type
+name `A` as its argument, signaling that what comes after it must be something
+that can be declared, thus no flow statement or no concept. The idea is
+simple, you bind `toString` method, you get `print` for free. If you want to
+bind `print` as well, you are free to do so.
 
-```clojure
+Here is a usage example:
 
-(|- Interpolatable.(
-    (:int(2) bounds),
-    (:int interpolate(int, int))
+```
+(|- Printable(:A) (
+    (:string toString(:A)),
+    (:string print),
     )
 )
 
-(:int a(int))
-(:= a(arg).(* 2 arg))
+(:& MyRecB (
+        (:int g(int, int)),
+        (:float a)
+    )
+)
+(:string myRecStr(MyRecB))
 
-(:= Interpolatable(a).(
-    bounds.(a (-4), a 4),
-    interpolate(min, max).(+ min (* (a min) (- max min)))
+(:= Printable(MyRecB) (
+        toString(myRecStr)
+       ;; ,print(mrec).("Print my rec b") optional
+    )
+)
+
+(:= myRecStr(myrec) (
+                concat "MyRecB" (
+                    concat (toString (g myrec)) (toString (a myrec)) 
+                )
+            )
+)
+```
+
+Concepts can take constraints. For example:
+
+```clojure
+
+(|- Divisible(:A(Number, Collection)) (
+        (:A divide(:A))
     )
 )
 
 ```
-Notice that we specify the bounded abstraction once at the top of binding,
-then we use its name inside the abstractions.
 
-The same thing goes for records. For example:
-
-```clojure
-
-(|- Printable.(
-    (:str print),
-    (:str printNewLine)
-    )
-)
-
-(:# MyRecA.(
-    (:int f(int, int))
-    (:float b)
-    )
-)
-
-(:= Printable(MyRecA).(
-        print.(+ (print (b MyRecA)) (print (f MyRecA))),
-        printNewLine.(+ (print (b MyRecA)) (printNewLine (f MyRecA)))
-    )
-)
-
-```
-For record members which have function space types, if one wants to apply
-context abstractions, one must do the following: 
-
-- Declare the abstraction that is going to be a member of the record. 
-- Bind the abstraction to the desired typing context
-- Partially declare the record
-- Bind the abstraction to the record
+This indicates that whatever type `A` is, it must be bound to concepts
+`Number` and `Collection`.
 
 
 Flow Statements
@@ -689,24 +682,24 @@ an example:
 
 ```clojure
 (:int f1)
-(:= f1.(4))
+(:= f1 (4))
 
 (:int f2)
-(:= f2.(-1))
+(:= f2 (-1))
 
 (:int f3)
-(:= f3.(7))
+(:= f3 (7))
 
 ;; exclusive-or flow binding
-(>|| f1.( 
-        (4).(f2), ;; if f1 outputs 4 f2 is evaluated afterwards
-        (_).(f3)  ;; otherwise f3 evaluated
+(>|| f1 ( 
+        (:= 4 (f2)), ;; if f1 outputs 4 f2 is evaluated afterwards
+        (:= _ (f3))  ;; otherwise f3 evaluated
     )
 )
 ;; and flow binding
-(>&& f1.( 
-        (f2), ;; evaluate both abstractions in parallel after f1 
-        (f3)  ;;
+(>&& f1 ( 
+        f2, ;; evaluate both abstractions in parallel after f1 
+        f3  ;;
     )
 )
 ```
@@ -731,24 +724,24 @@ example:
 
 ```clojure
 (:int f1)
-(:= f1.(4))
+(:= f1 (4))
 
 (:int f2(int, int))
-(:= f2(arg1, arg2).(+ arg1 arg2))
+(:= f2(arg1, arg2) (+ arg1 arg2))
 
 (:int f3)
-(:= f3.(7))
+(:= f3 (7))
 
 ;; exclusive-or flow binding
-(>|| f1.( 
-        (4).(f2(8, 1)), ;; if f1 outputs 4 f2 is evaluated afterwards
-        (_).(f3)  ;; otherwise f3 evaluated
+(>|| f1 (
+        (:= 4 (f2(8, 1))), ;; if f1 outputs 4 f2 is evaluated afterwards
+        (:= _ (f3))  ;; otherwise f3 evaluated
     )
 )
 ;; and flow binding
-(>&& f1.( 
-        (f2(4, 5)), ;; evaluate both abstractions in parallel after f1 
-        (f3)  ;;
+(>&& f1 (
+        f2(4, 5), ;; evaluate both abstractions in parallel after f1 
+        f3 ;;
     )
 )
 ```
@@ -757,27 +750,27 @@ In the case of abstractions, we can use the following:
 
 ```clojure
 (:int f1)
-(:= f1.(4))
+(:= f1 (4))
 
 (:int f2((:int (int, int)), int))
-(:= f2(f, arg1, arg2).(+ (f arg1 arg1) arg2))
+(:= f2(f, arg1, arg2) (+ (f arg1 arg1) arg2))
 
 (:int f3)
-(:= f3.(7))
+(:= f3 (7))
 
 (:int f4(int, int))
-(:= f4(arg1, arg2).(+ arg1 arg2))
+(:= f4(arg1, arg2) (+ arg1 arg2))
 
 ;; exclusive-or flow binding
-(>|| f1.( 
-        (4).(f2(f4, 8, 1)), ;; if f1 outputs 4 f2 is evaluated afterwards
-        (_).(f3)  ;; otherwise f3 evaluated
+(>|| f1 (
+        (:= 4 (f2(f4, 8, 1))), ;; if f1 outputs 4 f2 is evaluated afterwards
+        (:= _ (f3))  ;; otherwise f3 evaluated
     )
 )
 ;; and flow binding
-(>&& f1.( 
-        (f2(f4, 4, 5)), ;; evaluate both abstractions in parallel after f1 
-        (f3)  ;;
+(>&& f1 (
+        f2(f4, 4, 5), ;; evaluate both abstractions in parallel after f1 
+        f3  ;;
     )
 )
 ```
