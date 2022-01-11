@@ -68,7 +68,7 @@ The module declaration happens as follows:
 ! MyFileName (f, MyRecA, g)
 
 (:$ f(int, int) int)
-(:= f(x, y) (/ (* x 2) (+ y 3)))
+(=: f(x, y) (/ (* x 2) (+ y 3)))
 
 (:& MyRecB.(
     (:int a),
@@ -80,7 +80,7 @@ The module declaration happens as follows:
     )
 )
 (:$ g(int, int) int)
-(:= g(x, y) (/ (* x 2) (+ y 3)))
+(=: g(x, y) (/ (* x 2) (+ y 3)))
 
 ```
 
@@ -94,7 +94,7 @@ Importing abstractions from another module is done the following way:
 !: SomePackage/ModuleX/Funcs ;; import from some third party package
 
 (:$ h(int, int) int)
-(:= h(x, y).(f x y))
+(=: h(x, y).(f x y))
 
 (:& MyRecB.(
     (:int a),
@@ -107,7 +107,7 @@ Importing abstractions from another module is done the following way:
 )
 
 (:$ m(int, int) int)
-(:= m(x, y).(/ (* x 2) (+ y 3)))
+(=: m(x, y).(/ (* x 2) (+ y 3)))
 
 ```
 If we don't specify anything after the imported module, we import whatever the
@@ -121,7 +121,7 @@ One can use qualified imports for avoiding name clashes:
 !: SomePackage/ModuleX/Funcs (!MyOtherN) ;; qualified import from package
 
 (:$ h(int, int) int)
-(:= h(x, y).(!MyN:f x y))
+(=: h(x, y).(!MyN:f x y))
 
 (:& MyRecB.(
     (:int a),
@@ -134,7 +134,7 @@ One can use qualified imports for avoiding name clashes:
 )
 
 (:$ m(int, int) int)
-(:= m(x, y) (/ (* x 2) (+ y 3)))
+(=: m(x, y) (/ (* x 2) (+ y 3)))
 
 ```
 
@@ -176,7 +176,7 @@ concept of variable in the sense of c or c++. Here is an example:
 
 ```clojure
 (:$ f1(int, int) int) ;; declaration of abstraction
-(:= f1(x, y) (/ (* x 2) (+ y 3))) ;; binding of the abstraction
+(=: f1(x, y) (/ (* x 2) (+ y 3))) ;; binding of the abstraction
 ```
 Notice that the abstractions have two components:
 
@@ -195,7 +195,7 @@ judgement for example:
 
 ```clojure
 (:$ f2( (:int (float, float)), float, float) int)
-(:= f2(fn, a, b) (fn a b))
+(=: f2(fn, a, b) (fn a b))
 ```
 Here the `fn` is the abstraction which substitutes two floating
 points with an integer. Notice the "," between arguments. The "," is
@@ -206,7 +206,7 @@ shall see other examples.
 Here is a variable like abstraction:
 ```clojure
 (:$ a int)
-(:= a (4))
+(=: a (4))
 ```
 
 Notice that there is no difference between an abstraction that binds some
@@ -216,13 +216,13 @@ Here is an array like abstraction:
 
 ```clojure
 (:$ a int(5))
-(:= a (4, 4, 3, 7, 0))
+(=: a (4, 4, 3, 7, 0))
 ```
 One can access to the elements of an array like abstraction with regular
 application expression:
 ```clojure
 (:$ a int(5))
-(:= a (4, 8, 3, 7, 0))
+(=: a (4, 8, 3, 7, 0))
 (1 a) ;; outputs 8
 (0 a) ;; outputs 4
 ```
@@ -238,7 +238,7 @@ array like abstraction as the following:
     )
 )
 (:$ a A)
-(:= a ( 0(4), 1(8), 2(3), 3(7), 4(0)))
+(=: a ( 0(4), 1(8), 2(3), 3(7), 4(0)))
 ```
 
 Abstractions are the building blocks of LambdaScript. They can either be free
@@ -279,7 +279,7 @@ work like the record syntax of Haskell. So in order to access the value `4`
 for example, one should do: `(a MyRecord)` which would yield 4.
 
 Notice that this is not a binding but a declaration so we use the record
-declaration operator `:&` and not `:=`.
+declaration operator `:&` and not `=:`.
 
 ### Record Binding
 
@@ -306,7 +306,7 @@ abstractions. Here is an example:
 (:$ f1(int, int) int) ;; declaration of abstraction
 
 ;; bind in one go
-(:= recAbs (
+(=: recAbs (
         a(4), bs(1,2,3,4), b(4.2),
         as(1.0, 2.7, 3.1, 4.7), c("my string"),
         cs("my string", "is", "awesome"),
@@ -317,7 +317,7 @@ abstractions. Here is an example:
 (a recAbs) ;; would yield 4 even if the abstraction has a different default
            ;; value
 
-(:= f1(x, y) (/ (* x 2) (+ y 3))) ;; binding of the abstraction
+(=: f1(x, y) (/ (* x 2) (+ y 3))) ;; binding of the abstraction
 
 ```
 
@@ -350,28 +350,28 @@ something like this:
 (:$ f1(int, int) int)
 (:$ f2(int, int) int)
 
-(:= recA (
+(=: recA (
         f(f1), ;; lambda abstraction ??
         b(4.3)
     )
 )
 (:$ recB MyRecB)
 
-(:= recB (
+(=: recB (
     g(f2),
     a(4.3)
     )
 )
 (:$ recC MyRecC)
 
-(:= recC (
+(=: recC (
         mra(recA),
         mrb(recB)
     )
 )
 
-(:= f1(arg1, arg2) (+ (* arg1 arg1) arg2))
-(:= f2(arg1, arg2) (* (+ arg1 arg1) arg2))
+(=: f1(arg1, arg2) (+ (* arg1 arg1) arg2))
+(=: f2(arg1, arg2) (* (+ arg1 arg1) arg2))
 ```
 Notice that both in declaration and in binding, everything is done in one go.
 
@@ -414,13 +414,13 @@ Here is a usage example:
 )
 (:$ myRecStr(MyRecB) string)
 
-(:= Printable(MyRecB) (
+(=: Printable(MyRecB) (
         toString(myRecStr)
        ;; ,print(mrec).("Print my rec b") optional
     )
 )
 
-(:= myRecStr(myrec) (
+(=: myRecStr(myrec) (
                 concat "MyRecB" (
                     concat (toString (g myrec)) (toString (a myrec)) 
                 )
@@ -463,18 +463,18 @@ an example:
 
 ```clojure
 (:$ f1)
-(:= f1 (4))
+(=: f1 (4))
 
 (:$ f2 int)
-(:= f2 (-1))
+(=: f2 (-1))
 
 (:$ f3 int)
-(:= f3 (7))
+(=: f3 (7))
 
 ;; exclusive-or flow binding
 (>|| f1 ( 
-        (:= 4 (f2)), ;; if f1 outputs 4 f2 is evaluated afterwards
-        (:= _ (f3))  ;; otherwise f3 evaluated
+        (=: 4 (f2)), ;; if f1 outputs 4 f2 is evaluated afterwards
+        (=: _ (f3))  ;; otherwise f3 evaluated
     )
 )
 ;; and flow binding
@@ -505,18 +505,18 @@ example:
 
 ```clojure
 (:$ f1 int)
-(:= f1 (4))
+(=: f1 (4))
 
 (:$ f2(int, int) int)
-(:= f2(arg1, arg2) (+ arg1 arg2))
+(=: f2(arg1, arg2) (+ arg1 arg2))
 
 (:$ f3 int)
-(:= f3 (7))
+(=: f3 (7))
 
 ;; exclusive-or flow binding
 (>|| f1 (
-        (:= 4 (f2(8, 1))), ;; if f1 outputs 4 f2 is evaluated afterwards
-        (:= _ (f3))  ;; otherwise f3 evaluated
+        (=: 4 (f2(8, 1))), ;; if f1 outputs 4 f2 is evaluated afterwards
+        (=: _ (f3))  ;; otherwise f3 evaluated
     )
 )
 ;; and flow binding
@@ -531,21 +531,21 @@ In the case of abstractions, we can use the following:
 
 ```clojure
 (:$ f1 int)
-(:= f1 (4))
+(=: f1 (4))
 
 (:$ f2((:int (int, int)), int) int)
-(:= f2(f, arg1, arg2) (+ (f arg1 arg1) arg2))
+(=: f2(f, arg1, arg2) (+ (f arg1 arg1) arg2))
 
 (:$ f3 int)
-(:= f3 (7))
+(=: f3 (7))
 
 (:$ f4(int, int) int)
-(:= f4(arg1, arg2) (+ arg1 arg2))
+(=: f4(arg1, arg2) (+ arg1 arg2))
 
 ;; exclusive-or flow binding
 (>|| f1 (
-        (:= 4 (f2(f4, 8, 1))), ;; if f1 outputs 4 f2 is evaluated afterwards
-        (:= _ (f3))  ;; otherwise f3 evaluated
+        (=: 4 (f2(f4, 8, 1))), ;; if f1 outputs 4 f2 is evaluated afterwards
+        (=: _ (f3))  ;; otherwise f3 evaluated
     )
 )
 ;; and flow binding
