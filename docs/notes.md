@@ -372,7 +372,7 @@ Notice that both in declaration and in binding, everything is done in one go.
 
 ### Concepts
 
-Concepts describe class of types.
+Concepts describe what is doable with a type.
 
 Here is an example for declaring a concept:
 
