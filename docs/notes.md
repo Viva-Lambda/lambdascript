@@ -1,6 +1,6 @@
 # Design Notes
 
-Constructs of the language:
+## Constructs of the language
 
 module: basic reusable blocks of lambda script. Module name must be specified
 at the beginning of program. Along with exported functions.
@@ -22,8 +22,7 @@ abstractions.
 macros: basic metaprogramming facilities
 
 
-Operators
----------
+### Operators
 
 Operators are the fundamental signals that is used by the compiler to parse
 the source code.
@@ -41,8 +40,7 @@ Flow statements use `>`:
 
 Module statements use `!`
 
-Modules
--------
+### Modules
 
 Modules are the building blocks of reusable code in LambdaScript. Their main
 purpose is to show reachable abstractions of a given program. One can export
@@ -121,7 +119,7 @@ One can use qualified imports for avoiding name clashes:
 !: SomePackage/ModuleX/Funcs (!MyOtherN) ;; qualified import from package
 
 (:$ h(int, int) int)
-(=: h(x, y).(!MyN:f x y))
+(=: h(x, y) (!MyN:f x y))
 
 (:& MyRecB.(
     (:int a),
@@ -143,8 +141,7 @@ name declaration. This means that all functions exported by Funcs module needs
 to use MyOtherN prefix in MySomeOtherFile module.
 
 
-Types
-------
+### Types
 
 There are only two types in LambdaScript: function space types, and atomic
 types.
@@ -166,8 +163,7 @@ types. Cambridge ; New York: Cambridge University Press (Perspectives in
 logic).
 
 
-Abstraction
-------------
+### Abstraction
 
 Abstractions are the usual ways of dealing with functions and variables.
 Though we try to have functions rather than procedures, this may not be the
@@ -245,14 +241,13 @@ Abstractions are the building blocks of LambdaScript. They can either be free
 or bounded. Bounded abstractions can appear inside records and typing
 contexts.
 
-Record
--------
+### Record
 
 Record is essentially a stateless struct. Meaning that it has some
 heterogeneous fields with names. Once the declaration took place values can be
 bind to record fields through abstractions.
 
-### Record Declaration
+#### Record Declaration
 
 Here is a declaration example:
 
@@ -281,7 +276,7 @@ for example, one should do: `(a MyRecord)` which would yield 4.
 Notice that this is not a binding but a declaration so we use the record
 declaration operator `:&` and not `=:`.
 
-### Record Binding
+#### Record Binding
 
 Now let's see examples with binding. Binding a record with a particular set of
 values to another abstraction is done in the same way as in regular
@@ -375,8 +370,7 @@ something like this:
 ```
 Notice that both in declaration and in binding, everything is done in one go.
 
-Concepts
----------
+### Concepts
 
 Concepts describe class of types.
 
@@ -443,8 +437,7 @@ This indicates that whatever type `A` is, it must be bound to concepts
 `Number` and `Collection`. Hence they indicate a constraint on the concept.
 
 
-Flow Statements
-----------------
+### Flow Statements
 
 Flows are bindings. They are essentially stitches that join computations.
 There are 2 types of flow bindings:
@@ -556,24 +549,55 @@ In the case of abstractions, we can use the following:
 )
 ```
 
-Macros
--------
+### Macros
 
 Macros are basic meta programming facilities of LambdaScript based on
-substitution. Macro operators work at a token level, that is they can access
-to each token that is validated by the lexer, except parenthesis. Here is an
-example:
+substitution. Basically there are two macro types:
+
+- Parametrized macros
+- Basic macros
+
+Here is an example for basic macros:
+
+```clojure
+;; let's declare a variable like macro
+(:@ MyMacro 8)
+
+;; let's declare an abstraction like macro
+(:@ MyAbstraction (:$ f(int, float) float))
+
+``` 
+Here `:@` indicates that this is a macro declaration. `MyMacro` is the
+name of the macro. `8` is the macro body which is considered as a single
+element list.  Later on we shall see that we can work with these lists.
+
+Here is parametric macro declaration:
 
 ```clojure
 
-;; let's declare a macro
-@MyMacro(|- MyContC.( (:int a), (:int b), (:int c) ))
+;; we can also define function like macros
+(:@ MyFnLikeMacro(A, B) (+ A B))
 
 ```
-One can think of a macro as the following structure
-`MyMacro = ["|-", ["MyContC", [[":", "int", "a"], [...], [...]]]]`
+This macro takes two parameters `A` and `B`. The macro body is `(+ A B)` is a
+list with 3 members.
 
-LambdaScript provides four operators for working with these lists:
+The macros are used like this:
+
+```clojure
+;; let's declare a variable like macro
+'(MyMacro) ;; expands into 8
+
+;; let's declare an abstraction like macro
+'(MyAbstraction) ;; expands (:$ f(int, float) float)
+
+;; we can also define function like macros
+'(MyFnLikeMacro (arg1, arg3)) ;; expands into (+ arg1 arg3)
+```
+
+Now more advanced macros concern transformers.
+
+LambdaScript provides four access operators for working with macro body:
 
 - `@^`: let's you access to the head of the list.
 - `@$`: let's you access to the last element of the list
@@ -581,88 +605,45 @@ LambdaScript provides four operators for working with these lists:
   list
 - `@>`: let's you access to the tail of the list.
 
-Here are some usage examples:
+See their usage:
+
 ```clojure
+(:@ MyMacro4(A, B, fn) (fn ((@^ A) (@$ B))) )
 
-;; let's declare a macro
-@MyMacro2(|- MyContC.( (:int a), (:int b), (:int c) ))
+(:$ f1(int) float)
+(=: f1(a) (toFloat a))
+(:$ nbsf int(4))
+(:$ nbs float(4))
+(=: nbs (0.1, 0.2, 0.3, 0.4))
+(=: nbsf (1,2,3,4))
 
-(@ MyMacro2) ;; results in (|- MyContC.( (:int a), (:int b), (:int c) ))
-(@^ MyMacro2) ;; results in ( |- )
-(@$ MyMacro2) ;; results in ( MyContC.( (:int a) (:int b) (:int c) ) ) 
+'(MyMacro4 ((0 nbsf), (1 nbs), f1))
+
+;; expands into (f1 (0 nbs)) which is then evaluated as
+;; toFloat 1
 
 ```
-Notice that both the result of `@^` and `@$` are syntactically incorrect. Thus
-the compiler would generate an error message. How do we get rid of the
-parenthesis ? By specifying the macro expansion environment.
+Notice that we only put a single `'` for signaling the macro expansion
+environment.
 
-```clojure
+LambdaScript provides a single merge operator for macro bodys:
 
-;; let's declare a macro
-@MyMacro2(|- MyContC.( (:int a), (:int b), (:int c) ))
+- `@+`: let's you merge two macro lists
 
-'(@^ MyMacro) ;; results in |-
-'(@$ MyMacro) ;; results in MyContC.( (:int a) (:int b) (:int c) )
+See its usage:
 
 ```
-Notice the `'` mark at the beginning of the parenthesis. Inside the macro
-expansion environment the expansion consumes only the outer parenthesis. So we
-can safely nest expansions:
+(:@ MyMacro1(A, B) (@+ (@< A) (@$ B)))
 
-```clojure
-
-;; let's declare a macro
-@MyMacro2(|- MyContC.( (:int a), (:int b), (:int c) ))
-
-'(@^ (@$ MyMacro2)) ;; results in MyContC for example
-
-```
-
-The nice thing is macro declarations can contain macro expansion environments
-and function like macros that have constants as arguments are evaluated at the
-compilation phase. For example let's say you want to declare records with
-different number of multi valued types. You can do something like the
-following:
-
-```clojure
-
-;; a function like macro
-@MyInc((x: int).(+ x 1))
-
-@MyRecAMac(:# MyRecA.( (:int'((@ MyInc(3))) a)))
-
-@MyRecBMac(:# MyRecB.( (:int'(@ MyInc( '(@$ ( @> (@^ (@$ MyRecAMac)))) )) a)))
-
-;; the expression (@$ ( @> (@^ (@$ MyRecAMac)))) results in 4
+'(MyMacro1 (
+        (:$ f int(5)),
+        (:$ f2 float(6))
+    ) 
+) ;; expands into (:$ f float(6))
 
 ```
 
-Function like macros can be very powerful as they permit to abstract behavior.
-We could have also used an intermediary function like macro to make the above
-expression more readable.
-
-
-```clojure
-
-;; a function like macro
-@MyInc(:int (x: int).(+ x 1))
-
-@MyRecAMac(:# MyRecA.( (:int'(@ MyInc(3)) a)))
-
-@IncFromRecA('(@ MyInc( '(@$ ( @> (@^ (@$ MyRecAMac)))) )))
-
-@MyRecBMac(:# MyRecB.( (:int(@ IncFromRecA) a)))
-
-@IncFromRecB('(@ MyInc( '(@$ ( @> (@^ (@$ MyRecBMac)))) )))
-
-@MyRecCMac(:# MyRec'(@ IncFromRecA).( (:int(@ IncFromRecB) a))) ;; results in 5
-
-```
-
-The main condition for expansion of macros is that they need to be previously
-declared. Shadowing of free abstractions by macro expansion is a compile time
-error.
-
+## Grammar
 
 The new grammar in bnf like form:
 
