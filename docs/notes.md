@@ -586,13 +586,13 @@ The macros are used like this:
 
 ```clojure
 ;; let's declare a variable like macro
-'(MyMacro) ;; expands into 8
+(MyMacro) ;; expands into 8
 
 ;; let's declare an abstraction like macro
-'(MyAbstraction) ;; expands (:$ f(int, float) float)
+(MyAbstraction) ;; expands (:$ f(int, float) float)
 
 ;; we can also define function like macros
-'(MyFnLikeMacro (arg1, arg3)) ;; expands into (+ arg1 arg3)
+(MyFnLikeMacro (arg1, arg3)) ;; expands into (+ arg1 arg3)
 ```
 
 Now more advanced macros concern transformers.
@@ -617,16 +617,38 @@ See their usage:
 (=: nbs (0.1, 0.2, 0.3, 0.4))
 (=: nbsf (1,2,3,4))
 
-'(MyMacro4 ((0 nbsf), (1 nbs), f1))
+(MyMacro4 ((0 nbsf), (1 nbs), f1))
 
 ;; expands into (f1 (0 nbs)) which is then evaluated as
 ;; toFloat 1
+```
+
+The `'` signals that the macro expansion should be delayed with respect to its
+parent scope. `#` plus a number, for example `#2`, signals the expansion order
+of the macro within local scope. Here are two usage examples:
+
+```clojure
+(:@ MyFnLikeMacro(A, B) (+ A B))
+(:@ MyFVarMac (8.4))
+(:@ MyIVarMac (3))
+
+(MyFnLikeMacro ('(MyIVarMac), (MyIVarMac)))
+;; expands into (MyFnLikeMacro ( '(MyIVarMac), 3))
+;; then into (+ (MyIVarMac) 3) 
+;; then into (+ 3 3)
+
+(MyFnLikeMacro (#2(MyFVarMac), #1(MyFVarMac)))
+;; expands into (MyFnLikeMacro (#1(MyFVarMac), 8.4))
+;; then into (MyFnLikeMacro (8.4, 8.4))
+;; then into (+ 8.4 8.4)
 
 ```
-Notice that we only put a single `'` for signaling the macro expansion
-environment.
+Note that numbers do not correspond to expansion order directly. They simply
+indicate relative priority. Higher the number lesser the priority. If two
+priority indicators are equal, no guarantee is given about which one is going
+to expand first.
 
-LambdaScript provides a single merge operator for macro bodys:
+LambdaScript provides a single merge operator for macro bodies:
 
 - `@+`: let's you merge two macro lists
 
@@ -635,13 +657,70 @@ See its usage:
 ```
 (:@ MyMacro1(A, B) (@+ (@< A) (@$ B)))
 
-'(MyMacro1 (
+(MyMacro1 (
         (:$ f int(5)),
         (:$ f2 float(6))
     ) 
 ) ;; expands into (:$ f float(6))
 
 ```
+
+LambdaScript provides a match operator for testing macro parameters against
+given patterns:
+
+- `@?`: let's you test macro parameters against patterns.
+
+See the usage:
+
+```
+(:@ var(A)  ;; matching pattern var A
+     (@? ((@$ A), ;; match part
+          (int)) ;; value to match against
+         (:$ (@^ A) int) ;; substitute in case there is a match
+     ) ;; if there is no match compiler generates an error message
+)
+(var (f int)) ;; expands into (:$ f int)
+
+```
+Here the first argument of `@?` is `((@$ A), (int))` contains the match
+pattern. The first `(@$ A)` indicates which portion of the parameter should
+match. The second `(int)` is what we are matching against. The second
+argument of `@?` indicates what should be expanded in case the match is true,
+in this case `(:$ (@^ A) int)`.
+
+Notice that we are not confined to constant values for matching against, we
+can also use constants plus a wildcard `_`. So the following is perfectly
+possible:
+
+```
+(:@ rename(A, newname) (@? ((@< A), (:$ _)) (:$ newname)))
+
+(rename ( (:$ f int(5)), f3) ) ;; expands into (:$ f3 int(5))
+
+```
+
+This feature can be used for implementing pattern matching. For example:
+
+```
+(:@ leti(A, number) ((:$ A int) (=: A(number)))
+(:@ array(A, B) (@? ((@$ A), (int)) ((@< A) int(B)) ))
+(:@ var(A, t) (:$ A t))
+(:@ def(A) (@? () ())) ;; declare type and bind function
+
+(leti (a 4)) ;; expands to (:$ a int) (=: a(4))
+
+(array ((f int), 5)) ;; expands into (:$ f int(5))
+(var (f float)) ;; expands into (:$ f float)
+(def (
+        (f((int arg1), (int arg2)) int), 
+        (+ arg1 arg2)
+     )
+)
+;; expands into
+(:$ f(int, int) int) (=: f(arg1, arg2) (+ arg1 arg2))
+
+```
+
 
 ## Grammar
 
