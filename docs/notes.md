@@ -2,6 +2,14 @@
 
 ## Constructs of the language
 
+list: everything is a list in lambdascript. A list is usually delimited by '('
+and ')' in these notes. It can be specified by other characters in code. The
+empty list can omit parenthesis. A list with a single element can either
+contain or omit the parenthesis. A list with multiple elements must be
+delimited by parenthesis. In the case of multiple elements, the elements are
+separated by white space, it can be either basic latin space (u+0020 in
+utf-8), or newline character (u+00a in utf-8).
+
 module: basic reusable blocks of lambda script. Module name must be specified
 at the beginning of program. Along with exported functions.
 
@@ -21,12 +29,30 @@ abstractions.
 
 macros: basic metaprogramming facilities
 
+### Memory Model
+
+LambdaScript has a very simple memory model that resembles to that of c++.
+This would be decided later on.
+
+The `:` operator declares abstractions, records and concepts. During the
+binding of these structures the required memory is allocated. 
+
+The deallocation of that memory is done using `~` operator, which takes any
+binding of a record or an abstraction and outputs a boolean value. If the
+operation is successful we output a true value, if it is not successful we
+output false. The location of this deallocation is determined by the flow
+statements.
+
 
 ### Operators
 
 Operators are the fundamental signals that is used by the compiler to parse
 the source code.
 Each construct of the language has an operator associated to it.
+
+Declarations use `:`: declares given abstraction, record or concept.
+
+Removal use `~`: removes given abstraction, record instance, from memory.
 
 Abstractions use `$`:
 
@@ -63,22 +89,22 @@ keyword mappings etc.
 The module declaration happens as follows:
 
 ```clojure
-! MyFileName (f, MyRecA, g)
+(! MyFileName (f MyRecA g) )
 
-(:$ f(int, int) int)
-(=: f(x, y) (/ (* x 2) (+ y 3)))
+(:$ f (int int) int)
+(=: f (x y) (/ (* x 2) (+ y 3)))
 
-(:& MyRecB.(
-    (:int a),
-    (:float b),
-    (:float(4) as),
-    (:int(4) bs),
-    (:str c),
+(:& MyRecB (
+    (:int a) 
+    (:float b) 
+    (:float(4) as) 
+    (:int(4) bs) 
+    (:str c) 
     (:str(3) cs)
     )
 )
-(:$ g(int, int) int)
-(=: g(x, y) (/ (* x 2) (+ y 3)))
+(:$ g (int int) int)
+(=: g (x y) (/ (* x 2) (+ y 3)))
 
 ```
 
@@ -87,25 +113,25 @@ If no abstraction is specified we assume that all abstractions are exported.
 Importing abstractions from another module is done the following way:
 
 ```clojure
-! MySomeOtherFile (h, MyRecB, m) ;; this file
-!: /MyLambda/Module1/MyFileName (f, MyRecA) ;; import from local folder
-!: SomePackage/ModuleX/Funcs ;; import from some third party package
+(! MySomeOtherFile (h MyRecB m) ) ;; this file
+(!: /MyLambda/Module1/MyFileName (f MyRecA) ) ;; import from local folder
+(!: SomePackage/ModuleX/Funcs) ;; import from some third party package
 
-(:$ h(int, int) int)
-(=: h(x, y).(f x y))
+(:$ h (int int) int)
+(=: h (x y) (f x y))
 
-(:& MyRecB.(
-    (:int a),
-    (:float b),
-    (:float(4) as),
-    (:int(4) bs),
-    (:str c),
+(:& MyRecB (
+    (:int a) 
+    (:float b) 
+    (:float(4) as) 
+    (:int(4) bs) 
+    (:str c) 
     (:str(3) cs)
     )
 )
 
-(:$ m(int, int) int)
-(=: m(x, y).(/ (* x 2) (+ y 3)))
+(:$ m (int  int) int)
+(=: m (x y) (/ (* x 2) (+ y 3)))
 
 ```
 If we don't specify anything after the imported module, we import whatever the
@@ -114,25 +140,25 @@ module is exporting.
 One can use qualified imports for avoiding name clashes:
 
 ```clojure
-! MySomeOtherFile (h, MyRecB, m) ;; this file
-!: /MyLambda/Module1/MyFileName (!MyN(f, MyRecA)) ;; qualified import from local folder
-!: SomePackage/ModuleX/Funcs (!MyOtherN) ;; qualified import from package
+(! MySomeOtherFile (h MyRecB m)) ;; this file
+(!: /MyLambda/Module1/MyFileName (!MyN(f MyRecA))) ;; qualified import from local folder
+(!: SomePackage/ModuleX/Funcs (!MyOtherN));; qualified import from package
 
-(:$ h(int, int) int)
-(=: h(x, y) (!MyN:f x y))
+(:$ h (int int) int)
+(=: h (x y) (!MyN:f x y))
 
-(:& MyRecB.(
-    (:int a),
-    (:float b),
-    (:float(4) as),
-    (:int(4) bs),
-    (:str c),
+(:& MyRecB (
+    (:int a)
+    (:float b)
+    (:float(4) as)
+    (:int(4) bs)
+    (:str c)
     (:str(3) cs)
     )
 )
 
-(:$ m(int, int) int)
-(=: m(x, y) (/ (* x 2) (+ y 3)))
+(:$ m (int int) int)
+(=: m (x y) (/ (* x 2) (+ y 3)))
 
 ```
 
@@ -171,8 +197,8 @@ case at all times due to the flow statements discarding values. There is no
 concept of variable in the sense of c or c++. Here is an example:
 
 ```clojure
-(:$ f1(int, int) int) ;; declaration of abstraction
-(=: f1(x, y) (/ (* x 2) (+ y 3))) ;; binding of the abstraction
+(:$ f1 (int int) int) ;; declaration of abstraction
+(=: f1 (x y) (/ (* x 2) (+ y 3))) ;; binding of the abstraction
 ```
 Notice that the abstractions have two components:
 
@@ -190,8 +216,8 @@ Using abstraction in a declaration means including abstraction's typing
 judgement for example:
 
 ```clojure
-(:$ f2( (:int (float, float)), float, float) int)
-(=: f2(fn, a, b) (fn a b))
+(:$ f2 (((float float) int) float float) int)
+(=: f2 (fn a b) (fn a b))
 ```
 Here the `fn` is the abstraction which substitutes two floating
 points with an integer. Notice the "," between arguments. The "," is
@@ -202,7 +228,7 @@ shall see other examples.
 Here is a variable like abstraction:
 ```clojure
 (:$ a int)
-(=: a (4))
+(=: a (4)) ;; or (=: a 4)
 ```
 
 Notice that there is no difference between an abstraction that binds some
@@ -218,7 +244,7 @@ One can access to the elements of an array like abstraction with regular
 application expression:
 ```clojure
 (:$ a int(5))
-(=: a (4, 8, 3, 7, 0))
+(=: a (4 8 3 7 0))
 (1 a) ;; outputs 8
 (0 a) ;; outputs 4
 ```
@@ -226,15 +252,15 @@ Array like abstractions are in fact records in disguise. You can think of an
 array like abstraction as the following:
 ```clojure
 (:& A (
-        (:$ 0 int),
-        (:$ 1 int),
-        (:$ 2 int),
-        (:$ 3 int),
+        (:$ 0 int)
+        (:$ 1 int)
+        (:$ 2 int)
+        (:$ 3 int)
         (:$ 4 int)
     )
 )
 (:$ a A)
-(=: a ( 0(4), 1(8), 2(3), 3(7), 4(0)))
+(=: a (0(4) 1(8) 2(3) 3(7) 4(0)))
 ```
 
 Abstractions are the building blocks of LambdaScript. They can either be free
@@ -256,16 +282,15 @@ Here is a declaration example:
 ;; a record with seven slots for abstractions
 
 (:& MyRecord (
-        (:$ a int), ;; integer variable like abstraction
-        (:$ b float), ;; float variable like abstraction
-        (:$ as float(4)), ;; float array like abstraction
-        (:$ bs int(4)), ;; int array like abstraction
-        (:$ c str), ;; string abstraction
-        (:$ cs str(3)), ;; string array like abstraction
-        (:$ f(int, int) int) ;; function like abstraction
+        (:$ a int) ;; integer variable like abstraction
+        (:$ b float) ;; float variable like abstraction
+        (:$ as float(4)) ;; float array like abstraction
+        (:$ bs int(4)) ;; int array like abstraction
+        (:$ c str) ;; string abstraction
+        (:$ cs str(3)) ;; string array like abstraction
+        (:$ f(int int) int) ;; function like abstraction
     )
 )
-
 ```
 
 Notice that the members of the record are in fact bounded abstractions. They
@@ -286,25 +311,32 @@ abstractions. Here is an example:
 
 ;; this is our record
 (:& MyRecA (
-        (:$ a int),
-        (:$ bs int(4)),
-        (:$ b float),
-        (:$ as float(4)),
-        (:$ c str),
+        (:$ a int)
+        (:$ bs int(4))
+        (:$ b float)
+        (:$ as float(4))
+        (:$ c str)
         (:$ cs str(3))
-        (:$ f(int, int) int)
+        (:$ f(int int) int)
     )
 )
 
 (:$ recAbs MyRecA) ;; recAbs is an abstraction like (:int f3)
 
-(:$ f1(int, int) int) ;; declaration of abstraction
+(:$ f1(int int) int) ;; declaration of abstraction
 
 ;; bind in one go
 (=: recAbs (
-        a(4), bs(1,2,3,4), b(4.2),
-        as(1.0, 2.7, 3.1, 4.7), c("my string"),
-        cs("my string", "is", "awesome"),
+        a(4) bs(1 2 3 4) b(4.2)
+        as(1.0 2.7 3.1 4.7) c("my string")
+        cs("my string" "is" "awesome")
+        f(f1)
+    )
+)
+(=: recAbs (
+         a(4) bs(1 2 3 4) b(4.2)
+        as(1.0 2.7 3.1 4.7) c("my string")
+        cs("my string" "is" "awesome")
         f(f1)
     )
 )
@@ -312,7 +344,7 @@ abstractions. Here is an example:
 (a recAbs) ;; would yield 4 even if the abstraction has a different default
            ;; value
 
-(=: f1(x, y) (/ (* x 2) (+ y 3))) ;; binding of the abstraction
+(=: f1(x y) (/ (* x 2) (+ y 3))) ;; binding of the abstraction
 
 ```
 
@@ -321,19 +353,19 @@ something like this:
 
 ```clojure
 (:& MyRecA (
-    (:$ f(int, int) int),
+    (:$ f(int int) int),
     (:$ b float)
     )
 )
 
 (:& MyRecB (
-    (:$ g(int, int) int),
+    (:$ g(int int) int)
     (:$ a float)
     )
 )
 
 (:& MyRecC (
-    (:$ mra MyRecA),
+    (:$ mra MyRecA)
     (:$ mrb MyRecB)
     )
 )
@@ -342,31 +374,31 @@ something like this:
 
 ;;
 
-(:$ f1(int, int) int)
-(:$ f2(int, int) int)
+(:$ f1(int int) int)
+(:$ f2(int int) int)
 
 (=: recA (
-        f(f1), ;; lambda abstraction ??
+        f(f1) ;; lambda abstraction ??
         b(4.3)
     )
 )
 (:$ recB MyRecB)
 
 (=: recB (
-    g(f2),
+    g(f2)
     a(4.3)
     )
 )
 (:$ recC MyRecC)
 
 (=: recC (
-        mra(recA),
+        mra(recA)
         mrb(recB)
     )
 )
 
-(=: f1(arg1, arg2) (+ (* arg1 arg1) arg2))
-(=: f2(arg1, arg2) (* (+ arg1 arg1) arg2))
+(=: f1 (arg1 arg2) (+ (* arg1 arg1) arg2))
+(=: f2 (arg1 arg2) (* (+ arg1 arg1) arg2))
 ```
 Notice that both in declaration and in binding, everything is done in one go.
 
@@ -379,9 +411,9 @@ Here is an example for declaring a concept:
 ```clojure
 
 ;; declare a concept
-(:| Printable(A) (
-        (:$ toString(A) string),
-        (:$ print string),
+(:| Printable (A) (
+        (:$ toString (A) string)
+        (:$ print string)
     )
 )
 ```
@@ -395,26 +427,26 @@ free to do so.
 Here is a usage example:
 
 ```
-(:| Printable(A) (
-    (:$ toString(A) string),
-    (:$ print string),
+(:| Printable (A) (
+    (:$ toString (A) string)
+    (:$ print string)
     )
 )
 
 (:& MyRecB (
-        (:$ g(int, int) int),
+        (:$ g (int int) int)
         (:$ a float)
     )
 )
-(:$ myRecStr(MyRecB) string)
+(:$ myRecStr (MyRecB) string)
 
-(=: Printable(MyRecB) (
+(=: Printable (MyRecB) (
         toString(myRecStr)
-       ;; ,print(mrec).("Print my rec b") optional
+       ;; ,print(mrec) ("Print my rec b") optional
     )
 )
 
-(=: myRecStr(myrec) (
+(=: myRecStr (myrec) (
                 concat "MyRecB" (
                     concat (toString (g myrec)) (toString (a myrec)) 
                 )
@@ -426,8 +458,8 @@ Concepts can take constraints. For example:
 
 ```clojure
 
-(:| Divisible(A(Number, Collection)) (
-        (:$ divide(A) A)
+(:| Divisible (A (Number Collection)) (
+        (:$ divide (A) A)
     )
 )
 
@@ -465,15 +497,15 @@ an example:
 (=: f3 (7))
 
 ;; exclusive-or flow binding
-(>|| f1 ( 
-        (=: 4 (f2)), ;; if f1 outputs 4 f2 is evaluated afterwards
+(>|| f1 (
+        (=: 4 (f2)) ;; if f1 outputs 4 f2 is evaluated afterwards
         (=: _ (f3))  ;; otherwise f3 evaluated
     )
 )
 ;; and flow binding
 (>&& f1 ( 
-        f2, ;; evaluate both abstractions in parallel after f1 
-        f3  ;;
+        f2 ;; evaluate both abstractions in parallel after f1 
+        f3 ;;
     )
 )
 ```
@@ -500,21 +532,21 @@ example:
 (:$ f1 int)
 (=: f1 (4))
 
-(:$ f2(int, int) int)
-(=: f2(arg1, arg2) (+ arg1 arg2))
+(:$ f2 (int int) int)
+(=: f2 (arg1 arg2) (+ arg1 arg2))
 
 (:$ f3 int)
 (=: f3 (7))
 
 ;; exclusive-or flow binding
 (>|| f1 (
-        (=: 4 (f2(8, 1))), ;; if f1 outputs 4 f2 is evaluated afterwards
+        (=: 4 (f2(8, 1))) ;; if f1 outputs 4 f2 is evaluated afterwards
         (=: _ (f3))  ;; otherwise f3 evaluated
     )
 )
 ;; and flow binding
 (>&& f1 (
-        f2(4, 5), ;; evaluate both abstractions in parallel after f1 
+        f2(4 5) ;; evaluate both abstractions in parallel after f1 
         f3 ;;
     )
 )
@@ -526,24 +558,24 @@ In the case of abstractions, we can use the following:
 (:$ f1 int)
 (=: f1 (4))
 
-(:$ f2((:int (int, int)), int) int)
-(=: f2(f, arg1, arg2) (+ (f arg1 arg1) arg2))
+(:$ f2 (((int int) int) int) int)
+(=: f2 (f arg1 arg2) (+ (f arg1 arg1) arg2))
 
 (:$ f3 int)
-(=: f3 (7))
+(=: f3 7)
 
-(:$ f4(int, int) int)
-(=: f4(arg1, arg2) (+ arg1 arg2))
+(:$ f4 (int int) int)
+(=: f4 (arg1 arg2) (+ arg1 arg2))
 
 ;; exclusive-or flow binding
 (>|| f1 (
-        (=: 4 (f2(f4, 8, 1))), ;; if f1 outputs 4 f2 is evaluated afterwards
+        (=: 4 (f2(f4 8 1))) ;; if f1 outputs 4 f2 is evaluated afterwards
         (=: _ (f3))  ;; otherwise f3 evaluated
     )
 )
 ;; and flow binding
 (>&& f1 (
-        f2(f4, 4, 5), ;; evaluate both abstractions in parallel after f1 
+        (f2 (f4 4 5)) ;; evaluate both abstractions in parallel after f1 
         f3  ;;
     )
 )
@@ -552,7 +584,8 @@ In the case of abstractions, we can use the following:
 ### Macros
 
 Macros are basic meta programming facilities of LambdaScript based on
-substitution. Basically there are two macro types:
+substitution. A macro's input is a list, its output is also a list.
+Basically there are two macro types:
 
 - Parametrized macros
 - Basic macros
@@ -564,19 +597,19 @@ Here is an example for basic macros:
 (:@ MyMacro 8)
 
 ;; let's declare an abstraction like macro
-(:@ MyAbstraction (:$ f(int, float) float))
+(:@ MyAbstraction (:$ f (int float) float))
 
 ``` 
 Here `:@` indicates that this is a macro declaration. `MyMacro` is the
 name of the macro. `8` is the macro body which is considered as a single
-element list.  Later on we shall see that we can work with these lists.
+element list. Later on we shall see that we can work with these lists.
 
 Here is parametric macro declaration:
 
 ```clojure
 
 ;; we can also define function like macros
-(:@ MyFnLikeMacro(A, B) (+ A B))
+(:@ MyFnLikeMacro (A B) (+ A B))
 
 ```
 This macro takes two parameters `A` and `B`. The macro body is `(+ A B)` is a
@@ -589,10 +622,10 @@ The macros are used like this:
 (MyMacro) ;; expands into 8
 
 ;; let's declare an abstraction like macro
-(MyAbstraction) ;; expands (:$ f(int, float) float)
+(MyAbstraction) ;; expands (:$ f(int float) float)
 
 ;; we can also define function like macros
-(MyFnLikeMacro (arg1, arg3)) ;; expands into (+ arg1 arg3)
+(MyFnLikeMacro (arg1 arg3)) ;; expands into (+ arg1 arg3)
 ```
 
 Now more advanced macros concern transformers.
@@ -608,16 +641,16 @@ LambdaScript provides four access operators for working with macro body:
 See their usage:
 
 ```clojure
-(:@ MyMacro4(A, B, fn) (fn ((@^ A) (@$ B))) )
+(:@ MyMacro4 (A B fn) (fn ((@^ A) (@$ B))))
 
-(:$ f1(int) float)
-(=: f1(a) (toFloat a))
+(:$ f1 (int) float)
+(=: f1 (a) (toFloat a))
 (:$ nbsf int(4))
 (:$ nbs float(4))
-(=: nbs (0.1, 0.2, 0.3, 0.4))
-(=: nbsf (1,2,3,4))
+(=: nbs (0.1 0.2 0.3 0.4))
+(=: nbsf (1 2 3 4))
 
-(MyMacro4 ((0 nbsf), (1 nbs), f1))
+(MyMacro4 ((0 nbsf) (1 nbs) f1))
 
 ;; expands into (f1 (0 nbs)) which is then evaluated as
 ;; toFloat 1
@@ -628,18 +661,18 @@ parent scope. `#` plus a number, for example `#2`, signals the expansion order
 of the macro within local scope. Here are two usage examples:
 
 ```clojure
-(:@ MyFnLikeMacro(A, B) (+ A B))
+(:@ MyFnLikeMacro (A B) (+ A B))
 (:@ MyFVarMac (8.4))
 (:@ MyIVarMac (3))
 
-(MyFnLikeMacro ('(MyIVarMac), (MyIVarMac)))
-;; expands into (MyFnLikeMacro ( '(MyIVarMac), 3))
-;; then into (+ (MyIVarMac) 3) 
+(MyFnLikeMacro ('(MyIVarMac) (MyIVarMac)))
+;; expands into (MyFnLikeMacro ( '(MyIVarMac) 3))
+;; then into (+ (MyIVarMac) 3)
 ;; then into (+ 3 3)
 
-(MyFnLikeMacro (#2(MyFVarMac), #1(MyFVarMac)))
-;; expands into (MyFnLikeMacro (#1(MyFVarMac), 8.4))
-;; then into (MyFnLikeMacro (8.4, 8.4))
+(MyFnLikeMacro (#2(MyFVarMac) #1(MyFVarMac)))
+;; expands into (MyFnLikeMacro (#1(MyFVarMac) 8.4))
+;; then into (MyFnLikeMacro (8.4 8.4))
 ;; then into (+ 8.4 8.4)
 
 ```
@@ -647,6 +680,22 @@ Note that numbers do not correspond to expansion order directly. They simply
 indicate relative priority. Higher the number lesser the priority. If two
 priority indicators are equal, no guarantee is given about which one is going
 to expand first.
+
+The expansion order signifiers come with their equivalent in access operators:
+
+- `@^2`: let's you access to the head of the list after the last `#2` ordered
+  expansion takes place.
+- `@$4`: let's you access to the last element of the list after the last `#4`
+  ordered expansion takes place.
+- `@<7`: let's you access to initial elements except the last element of the
+  list after the last `#7` ordered expansion takes place
+- `@>5`: let's you access to the tail of the list after the last `#5` ordered
+  expansion takes place.
+
+If there are no expansion order signifier in the immediate scope of the macro,
+so no descendant scope is considered, the numbers don't mean anything. If
+there are expansion order signifiers who are all lower than the signifier of
+the operator, the operator applies after the last expansion takes place.
 
 LambdaScript provides a single merge operator for macro bodies:
 
@@ -658,7 +707,7 @@ See its usage:
 (:@ MyMacro1(A, B) (@+ (@< A) (@$ B)))
 
 (MyMacro1 (
-        (:$ f int(5)),
+        (:$ f int(5))
         (:$ f2 float(6))
     ) 
 ) ;; expands into (:$ f float(6))
@@ -673,16 +722,16 @@ given patterns:
 See the usage:
 
 ```
-(:@ var(A)  ;; matching pattern var A
-     (@? ((@$ A), ;; match part
-          (int)) ;; value to match against
+(:@ var A  ;; matching pattern var A
+     (@? (@$ A) ;; match part
+         (int) ;; value to match against
          (:$ (@^ A) int) ;; substitute in case there is a match
      ) ;; if there is no match compiler generates an error message
 )
 (var (f int)) ;; expands into (:$ f int)
 
 ```
-Here the first argument of `@?` is `((@$ A), (int))` contains the match
+Here the first argument of `@?` is `(@$ A) (int)` contains the match
 pattern. The first `(@$ A)` indicates which portion of the parameter should
 match. The second `(int)` is what we are matching against. The second
 argument of `@?` indicates what should be expanded in case the match is true,
@@ -693,31 +742,30 @@ can also use constants plus a wildcard `_`. So the following is perfectly
 possible:
 
 ```
-(:@ rename(A, newname) (@? ((@< A), (:$ _)) (:$ newname)))
+(:@ rename(A newname) (@? ((@< A) (:$ _)) (:$ newname (@$ A))))
 
-(rename ( (:$ f int(5)), f3) ) ;; expands into (:$ f3 int(5))
-
+(rename ( (:$ f int(5)) f3) ) ;; expands into (:$ f3 int(5))
 ```
 
 This feature can be used for implementing pattern matching. For example:
 
 ```
-(:@ leti(A, number) ((:$ A int) (=: A(number)))
-(:@ array(A, B) (@? ((@$ A), (int)) ((@< A) int(B)) ))
-(:@ var(A, t) (:$ A t))
-(:@ def(A) (@? () ())) ;; declare type and bind function
+(:@ leti (A, number) ((:$ A int) (=: A(number)))
+(:@ array (A B) (@? ((@$ A) (int)) ((@< A) int(B)) ))
+(:@ var (A t) (:$ A t))
+(:@ def (A) (@? () ())) ;; declare type and bind function
 
 (leti (a 4)) ;; expands to (:$ a int) (=: a(4))
 
-(array ((f int), 5)) ;; expands into (:$ f int(5))
+(array ((f int) 5)) ;; expands into (:$ f int(5))
 (var (f float)) ;; expands into (:$ f float)
 (def (
-        (f((int arg1), (int arg2)) int), 
+        (f ((int arg1) (int arg2)) int)
         (+ arg1 arg2)
      )
 )
 ;; expands into
-(:$ f(int, int) int) (=: f(arg1, arg2) (+ arg1 arg2))
+(:$ f(int int) int) (=: f(arg1 arg2) (+ arg1 arg2))
 
 ```
 
