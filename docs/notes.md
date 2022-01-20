@@ -31,17 +31,21 @@ macros: basic metaprogramming facilities
 
 ### Memory Model
 
-LambdaScript has a very simple memory model that resembles to that of c++.
-This would be decided later on.
+LambdaScript has a very simple memory model. All abstractions are immutable.
+There is no difference between an abstraction and a variable.
 
-The `:` operator declares abstractions, records and concepts. During the
-binding of these structures the required memory is allocated. 
+By default and-flow statements are executed in parallel or concurrently (not
+yet decided.) 
+Or-flow statements needs to be sequential since the next function depends on
+the output of the previous one. 
 
-The deallocation of that memory is done using `~` operator, which takes any
-binding of a record or an abstraction and outputs a boolean value. If the
-operation is successful we output a true value, if it is not successful we
-output false. The location of this deallocation is determined by the flow
-statements.
+Now several problems needs to be addressed in this context:
+
+Should there be a GC ?
+
+- If yes, should it be specific to each thread like NIM or not like regular
+  languages such as python etc ?
+- If no, how should deallocation should occur ? Or should it ?
 
 
 ### Operators
@@ -52,7 +56,6 @@ Each construct of the language has an operator associated to it.
 
 Declarations use `:`: declares given abstraction, record or concept.
 
-Removal use `~`: removes given abstraction, record instance, from memory.
 
 Abstractions use `$`:
 
@@ -227,8 +230,9 @@ shall see other examples.
 
 Here is a variable like abstraction:
 ```clojure
-(:$ a int)
-(=: a (4)) ;; or (=: a 4)
+(:$ a int) ;; creates a memory location
+(=: a (4)) ;; or (=: a 4) binds 4 to a memory location
+(~: a) ;; frees the value in memory location
 ```
 
 Notice that there is no difference between an abstraction that binds some
@@ -237,8 +241,9 @@ arguments to an expression and this one which binds no arguments to a literal.
 Here is an array like abstraction:
 
 ```clojure
-(:$ a int(5))
-(=: a (4, 4, 3, 7, 0))
+(:$ a int(5)) ;; creates a memory location a with int * 5
+(=: a (4, 4, 3, 7, 0)) ;; binds given values to memory location
+(~: a) ;; frees the value in the memory location
 ```
 One can access to the elements of an array like abstraction with regular
 application expression:
@@ -656,24 +661,23 @@ See their usage:
 ;; toFloat 1
 ```
 
-The `'` signals that the macro expansion should be delayed with respect to its
-parent scope. `#` plus a number, for example `#2`, signals the expansion order
-of the macro within local scope. Here are two usage examples:
+The `'` (quote) signals that the list or the symbol should not be evaluated
+and be used as a symbol. `#` plus a number, for example `#2`, signals the
+expansion order of the macro within local scope. Here are two usage examples:
 
 ```clojure
 (:@ MyFnLikeMacro (A B) (+ A B))
+(:@ MyFnLikeMacro2 (#1(A) #2(B)) (- A B))
 (:@ MyFVarMac (8.4))
 (:@ MyIVarMac (3))
 
 (MyFnLikeMacro ('(MyIVarMac) (MyIVarMac)))
 ;; expands into (MyFnLikeMacro ( '(MyIVarMac) 3))
-;; then into (+ (MyIVarMac) 3)
-;; then into (+ 3 3)
+;; then into (+ '(MyIVarMac) 3) which would result in compiler error
 
-(MyFnLikeMacro (#2(MyFVarMac) #1(MyFVarMac)))
-;; expands into (MyFnLikeMacro (#1(MyFVarMac) 8.4))
-;; then into (MyFnLikeMacro (8.4 8.4))
-;; then into (+ 8.4 8.4)
+(MyFnLikeMacro2 (MyFVarMac MyFVarMac))
+;; expands into (- 8.4 (MyFVarMac))
+;; then into (- 8.4 8.4)
 
 ```
 Note that numbers do not correspond to expansion order directly. They simply
@@ -692,10 +696,32 @@ The expansion order signifiers come with their equivalent in access operators:
 - `@>5`: let's you access to the tail of the list after the last `#5` ordered
   expansion takes place.
 
-If there are no expansion order signifier in the immediate scope of the macro,
-so no descendant scope is considered, the numbers don't mean anything. If
-there are expansion order signifiers who are all lower than the signifier of
-the operator, the operator applies after the last expansion takes place.
+Now, the compiler checks that for each ordered access operator declared in the
+macro body, the macro expansion call has a corresponding expansion order
+signifier. For example:
+
+```clojure
+
+(:@ MyFnLikeMacro (#1(A) #2(B) #1(C)) (+ (- (* (@$2 C) (@^1 A)) (@^2 B) ) (@$1 A)))
+(:@ MyArr1 (1 2 3))
+(:@ MyArr2 (4 5 6))
+(:@ MyArr3 (7 8 9))
+
+(MyFnLikeMacro (MyArr1 MyArr2 MyArr3) ) ;; this is correct
+;; it expands into:
+;; 1.1 (+ (- (* (@$2 C) (@^1 A)) (@^2 B) ) (@$1 A))
+;; 1.2 (+ (- (* (@$2 (7 8 9)) (@^1 (1 2 3))) (@^2 B) ) (@$1 (1 2 3)))
+;; 2.1. (+ (- (* (@$2 (7 8 9)) 1) (@^2 B) ) 3)
+;; 2.2. (+ (- (* 9 1) (@^2 (4 5 6)) ) 3)
+;; 2.3. (+ (- (* 9 1) 4) 3)
+;; (MyFnLikeMacro (MyArr1 #1(MyArr2) #1(MyArr3)) ;; this is illegal
+;; since the MyFnLikeMacro requires a second order expansion in its
+;; declaration
+
+```
+Here we are basically interchanging between the expansion and manipulation of
+the expanded tree. 
+Expand/Evaluate -> Apply macro ops -> Expand/Evaluate -> Apply macro ops -> etc.
 
 LambdaScript provides a single merge operator for macro bodies:
 
@@ -704,7 +730,7 @@ LambdaScript provides a single merge operator for macro bodies:
 See its usage:
 
 ```
-(:@ MyMacro1(A, B) (@+ (@< A) (@$ B)))
+(:@ MyMacro1 (A B) (@+ (@< A) (@$ B)))
 
 (MyMacro1 (
         (:$ f int(5))
@@ -713,6 +739,8 @@ See its usage:
 ) ;; expands into (:$ f float(6))
 
 ```
+The merge operator has also ordered correspondent such as `@+4` which
+indicates that the merging should take place after the fourth expansion.
 
 LambdaScript provides a match operator for testing macro parameters against
 given patterns:
@@ -766,7 +794,6 @@ This feature can be used for implementing pattern matching. For example:
 )
 ;; expands into
 (:$ f(int int) int) (=: f(arg1 arg2) (+ arg1 arg2))
-
 ```
 
 
