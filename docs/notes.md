@@ -684,6 +684,10 @@ previously. For example
 (MyFnLikeMacro (MyArr2 MyArr3))
 ```
 
+This construct logically permits the use of recursive macros or mutually
+recursive macros. This can be done by combining the match macro and function
+like parametric macro. An example shall be provided once we see the matching
+macro.
 
 LambdaScript provides a single merge operator for macro bodies:
 
@@ -706,7 +710,7 @@ given patterns:
 
 - `@?`: let's you test macro parameters against patterns.
 
-See the usage:
+There are two usages. With three arguments it is used like the following:
 
 ```
 (:@ var A  ;; matching pattern var A
@@ -723,6 +727,23 @@ pattern. The first `(@$ A)` indicates which portion of the parameter should
 match. The second `(int)` is what we are matching against. The second
 argument of `@?` indicates what should be expanded in case the match is true,
 in this case `(:$ (@^ A) int)`.
+
+With four arguments it is used like the following:
+
+```
+(:@ var A  ;; matching pattern var A
+     (@? (@$ A) ;; match part
+         (int) ;; value to match against
+         (:$ (@^ A) int) ;; substitute in case there is a match
+         (@$ A) ;; substitute in case there is no match
+     ) ;;
+)
+(var (f int)) ;; expands into (:$ f int)
+
+```
+Thus the main difference is with 3 arguments compiler generates an error
+message in case there is no match, with 4 arguments compiler substitutes the
+last argument in case there is no match.
 
 Notice that we are not confined to constant values for matching against, we
 can also use constants plus a wildcard `_`. So the following is perfectly
@@ -751,6 +772,21 @@ This feature can be used for implementing pattern matching. For example:
 )
 ;; expands into
 (:$ f(int int) int) (=: f(arg1 arg2) (+ arg1 arg2))
+```
+
+Combined with recursive macro call, macro matching can be a very powerful tool
+for implementing common imperative structures. For example, a for-loop on a
+    list can be expressed as a recursive macro substituting a combination of
+    access and apply operations. Something like:
+
+örnek daha bitmedi
+
+```clojure
+(:@ MyApply (Fn Arg) (Fn Arg))
+(:$ f (int int) int) (=: f (arg1 arg2) (+ arg1 arg2))
+(:$ arr int(3)) (=: arr (1 2 3))
+(:@ MyAccess (index array) (MyApply (index array)))
+(:@ MyAccessApply (index array func) (MyApply (func (MyAccess (index array)))))
 ```
 
 
