@@ -662,66 +662,28 @@ See their usage:
 ```
 
 The `'` (quote) signals that the list or the symbol should not be evaluated
-and be used as a symbol. `#` plus a number, for example `#2`, signals the
-expansion order of the macro within local scope. Here are two usage examples:
+and be used as a symbol.
 
-```clojure
-(:@ MyFnLikeMacro (A B) (+ A B))
-(:@ MyFnLikeMacro2 (#1(A) #2(B)) (- A B))
-(:@ MyFVarMac (8.4))
-(:@ MyIVarMac (3))
-
-(MyFnLikeMacro ('(MyIVarMac) (MyIVarMac)))
-;; expands into (MyFnLikeMacro ( '(MyIVarMac) 3))
-;; then into (+ '(MyIVarMac) 3) which would result in compiler error
-
-(MyFnLikeMacro2 (MyFVarMac MyFVarMac))
-;; expands into (- 8.4 (MyFVarMac))
-;; then into (- 8.4 8.4)
-
-```
-Note that numbers do not correspond to expansion order directly. They simply
-indicate relative priority. Higher the number lesser the priority. If two
-priority indicators are equal, no guarantee is given about which one is going
-to expand first.
-
-The expansion order signifiers come with their equivalent in access operators:
-
-- `@^2`: let's you access to the head of the list after the last `#2` ordered
-  expansion takes place.
-- `@$4`: let's you access to the last element of the list after the last `#4`
-  ordered expansion takes place.
-- `@<7`: let's you access to initial elements except the last element of the
-  list after the last `#7` ordered expansion takes place
-- `@>5`: let's you access to the tail of the list after the last `#5` ordered
-  expansion takes place.
-
-Now, the compiler checks that for each ordered access operator declared in the
-macro body, the macro expansion call has a corresponding expansion order
-signifier. For example:
+Macros can contain other macro invocations. In fact the only thing that is
+allowed inside parametric macros as variable is macros that are defined
+previously. For example
 
 ```clojure
 
-(:@ MyFnLikeMacro (#1(A) #2(B) #1(C)) (+ (- (* (@$2 C) (@^1 A)) (@^2 B) ) (@$1 A)))
+;; given these lists
 (:@ MyArr1 (1 2 3))
 (:@ MyArr2 (4 5 6))
 (:@ MyArr3 (7 8 9))
 
-(MyFnLikeMacro (MyArr1 MyArr2 MyArr3) ) ;; this is correct
-;; it expands into:
-;; 1.1 (+ (- (* (@$2 C) (@^1 A)) (@^2 B) ) (@$1 A))
-;; 1.2 (+ (- (* (@$2 (7 8 9)) (@^1 (1 2 3))) (@^2 B) ) (@$1 (1 2 3)))
-;; 2.1. (+ (- (* (@$2 (7 8 9)) 1) (@^2 B) ) 3)
-;; 2.2. (+ (- (* 9 1) (@^2 (4 5 6)) ) 3)
-;; 2.3. (+ (- (* 9 1) 4) 3)
-;; (MyFnLikeMacro (MyArr1 #1(MyArr2) #1(MyArr3)) ;; this is illegal
-;; since the MyFnLikeMacro requires a second order expansion in its
-;; declaration
+;; this is legal
+(:@ MyFnLikeMacro (A B) (+ (- (@$ A) (@^ (MyArr1))) (@$ B))) 
+(MyFnLikeMacro (MyArr2 MyArr3))
 
+;; this is illegal because someArr is an unknown variable for macro scope.
+(:@ MyFnLikeMacro (A B) (+ (- (@$ A) (@^ (someArr))) (@$ B))) 
+(MyFnLikeMacro (MyArr2 MyArr3))
 ```
-Here we are basically interchanging between the expansion and manipulation of
-the expanded tree. 
-Expand/Evaluate -> Apply macro ops -> Expand/Evaluate -> Apply macro ops -> etc.
+
 
 LambdaScript provides a single merge operator for macro bodies:
 
@@ -739,9 +701,6 @@ See its usage:
 ) ;; expands into (:$ f float(6))
 
 ```
-The merge operator has also ordered correspondent such as `@+4` which
-indicates that the merging should take place after the fourth expansion.
-
 LambdaScript provides a match operator for testing macro parameters against
 given patterns:
 
@@ -781,16 +740,14 @@ This feature can be used for implementing pattern matching. For example:
 (:@ leti (A, number) ((:$ A int) (=: A(number)))
 (:@ array (A B) (@? ((@$ A) (int)) ((@< A) int(B)) ))
 (:@ var (A t) (:$ A t))
-(:@ def (A) (@? () ())) ;; declare type and bind function
+(:@ def (A B) (@? () ())) ;; declare type and bind function
 
 (leti (a 4)) ;; expands to (:$ a int) (=: a(4))
 
 (array ((f int) 5)) ;; expands into (:$ f int(5))
 (var (f float)) ;; expands into (:$ f float)
-(def (
-        (f ((int arg1) (int arg2)) int)
-        (+ arg1 arg2)
-     )
+(def (f ((int arg1) (int arg2)) int)
+     (+ arg1 arg2)
 )
 ;; expands into
 (:$ f(int int) int) (=: f(arg1 arg2) (+ arg1 arg2))
