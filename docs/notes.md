@@ -35,9 +35,15 @@ LambdaScript has a very simple memory model. All abstractions are immutable.
 There is no difference between an abstraction and a variable.
 
 By default and-flow statements are executed in parallel or concurrently (not
-yet decided.) 
+yet decided.)
 Or-flow statements needs to be sequential since the next function depends on
 the output of the previous one. 
+
+Since the syntax is guaranteed to be a tree, one can distinguish the
+occurrences of allocation and dellocation statements in order to prevent
+dangling pointer errors (null pointer exception, etc). 
+
+TODO: Virtual machines ??
 
 Now several problems needs to be addressed in this context:
 
@@ -47,6 +53,15 @@ Should there be a GC ?
   languages such as python etc ?
 - If no, how should deallocation should occur ? Or should it ?
 
+```clojure
+
+(:$ arr int(6))
+(=: arr (1 3 8 9 6 5))
+(2 arr) ;; 8
+(~: arr)
+(3 arr) ;; segfault
+
+```
 
 ### Operators
 
@@ -676,7 +691,7 @@ previously. For example
 (:@ MyArr3 (7 8 9))
 
 ;; this is legal
-(:@ MyFnLikeMacro (A B) (+ (- (@$ A) (@^ (MyArr1))) (@$ B))) 
+(:@ MyFnLikeMacro (A B) (+ (- (@$ A) (@^ (MyArr1))) (@$ B)))
 (MyFnLikeMacro (MyArr2 MyArr3))
 
 ;; this is illegal because someArr is an unknown variable for macro scope.
@@ -745,6 +760,33 @@ Thus the main difference is with 3 arguments compiler generates an error
 message in case there is no match, with 4 arguments compiler substitutes the
 last argument in case there is no match.
 
+When one wants to match more than one condition, one can use the derived
+operator: `@?*`:
+
+```clojure
+(:@ var A  ;; matching pattern var A against 1 or more conditions
+     (@?* (@$ A) ;; match part
+         (
+            (int) ;; value to match against
+            (:$ (@^ A) int) ;; substitute in case there is a match
+         )
+         (
+            (float)
+            (:$ (@^ A) float)
+         )
+         (
+            (string)
+            (:$ (@^ A) string)
+         )
+         (@$ A) ;; substitute in case there is no match
+     ) ;;
+)
+(var (f int)) ;; expands into (:$ f int)
+(var (f float)) ;; expands into (:$ f float)
+(var (f string)) ;; expands into (:$ f string)
+```
+
+
 Notice that we are not confined to constant values for matching against, we
 can also use constants plus a wildcard `_`. So the following is perfectly
 possible:
@@ -776,19 +818,21 @@ This feature can be used for implementing pattern matching. For example:
 
 Combined with recursive macro call, macro matching can be a very powerful tool
 for implementing common imperative structures. For example, a for-loop on a
-    list can be expressed as a recursive macro substituting a combination of
-    access and apply operations. Something like:
-
-örnek daha bitmedi
+list can be expressed as a recursive macro substituting a combination of
+access and apply operations. Something like:
 
 ```clojure
-(:@ MyApply (Fn Arg) (Fn Arg))
-(:$ f (int int) int) (=: f (arg1 arg2) (+ arg1 arg2))
+(:$ f (int) int) (=: f (arg1) (+ arg1 10))
 (:$ arr int(3)) (=: arr (1 2 3))
-(:@ MyAccess (index array) (MyApply (index array)))
-(:@ MyAccessApply (index array func) (MyApply (func (MyAccess (index array)))))
+(:@ MyFor (func arr) 
+          (@?* (arr)
+                (() ()) ;; case 1
+                ((_) (@+ (func (@^ arr)) (MyFor (func (@> arr))))) ;; case 2
+          )
+)
+(MyFor (f arr))
+;; expands into ((f 1 10) (f 2 10) (f 3 10))
 ```
-
 
 ## Grammar
 
