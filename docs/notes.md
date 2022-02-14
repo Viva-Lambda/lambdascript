@@ -84,6 +84,21 @@ Flow statements use `>`:
 
 Module statements use `!`
 
+Separators in BNF form:
+
+```
+leftpar := <unique-utf8-char> | (
+rightpar := <unique-utf8-char> | )
+list separator := <unique-utf8-char> | <empty-space>
+bind separator := <unique-utf8-char> | .
+type separator := <unique-utf8-char> | :
+b-s := <bind separator>
+rpar := <rightpar>
+lpar := <leftpar>
+l-s := <list separator>
+t-s := <type separator>
+```
+
 ### Modules
 
 Modules are the building blocks of reusable code in LambdaScript. Their main
@@ -184,6 +199,47 @@ Notice that we are not specifying any names after the third import statements
 name declaration. This means that all functions exported by Funcs module needs
 to use MyOtherN prefix in MySomeOtherFile module.
 
+In BNF form:
+
+```
+module statement := <module declaration> <module import>*
+module declaration :=  <module declaration and export> | <module name declaration>
+module declaration and export := <module operator> <module name> <export statement>
+module name declaration := <module operator> <module name>
+module operator := <unique-utf8-string> | !
+
+export statement := <lpar> <exported-name> <rpar> | <export list>
+export list := <export list start> <exported content>* <export list end>
+export list start := <lpar>
+exported content := <exported-name> <l-s>
+exported list end := <exported-name> <rpar>
+
+module import := <module import start> <import statement> <module import end>
+module import start := <lpar> <module import operator> <module import path>
+module import operator := <module operator> <type separator>
+module import end := <rpar>
+
+module import path := <local import path> | <package import path>
+local import path := <path separator> <path content>
+package import path := <path content>
+path content := <path content start>* <path content end>
+path content start := <path name><path separator>
+path content end := <path name>
+path separator := <unique-utf8-char> | /
+
+import statement := <import list> 
+                  | <qualified import list>
+                  | <qualification statement>
+                  | <null>
+
+import list := <import list start> <import list content>* <import list end>
+import list start := <lpar>
+import list content := <imported-name> <l-s>
+import list end := <imported-name> <rpar>
+
+qualified import list := <lpar> <module operator> <imported name> <import list> <rpar>
+qualification statement := <lpar> <module operator> <imported name> <rpar>
+```
 
 ### Types
 
@@ -287,6 +343,11 @@ Abstractions are the building blocks of LambdaScript. They can either be free
 or bounded. Bounded abstractions can appear inside records and typing
 contexts.
 
+In BNF form:
+```
+
+```
+
 ### Record
 
 Record is essentially a stateless struct. Meaning that it has some
@@ -348,13 +409,6 @@ abstractions. Here is an example:
 ;; bind in one go
 (=: recAbs (
         a(4) bs(1 2 3 4) b(4.2)
-        as(1.0 2.7 3.1 4.7) c("my string")
-        cs("my string" "is" "awesome")
-        f(f1)
-    )
-)
-(=: recAbs (
-         a(4) bs(1 2 3 4) b(4.2)
         as(1.0 2.7 3.1 4.7) c("my string")
         cs("my string" "is" "awesome")
         f(f1)
@@ -870,11 +924,23 @@ export list start := <lpar>
 exported content := <exported-name> <l-s>
 exported list end := <exported-name> <rpar>
 
-module import := <module import specific> | <module import general>
-module import general := <module import operator> <module import path>
-module import specific := <module import general> <import statement>
+module import := <module import start> <import statement> <module import end>
+module import start := <lpar> <module import operator> <module import path>
 module import operator := <module operator> <type separator>
-import statement := <import list> | <qualified import list> | <qualification statement>
+module import end := <rpar>
+
+module import path := <local import path> | <package import path>
+local import path := <path separator> <path content>
+package import path := <path content>
+path content := <path content start>* <path content end>
+path content start := <path name><path separator>
+path content end := <path name>
+path separator := <unique-utf8-char> | /
+
+import statement := <import list> 
+                  | <qualified import list>
+                  | <qualification statement>
+                  | <null>
 
 import list := <import list start> <import list content>* <import list end>
 import list start := <lpar>
@@ -884,13 +950,6 @@ import list end := <imported-name> <rpar>
 qualified import list := <lpar> <module operator> <imported name> <import list> <rpar>
 qualification statement := <lpar> <module operator> <imported name> <rpar>
 
-module import path := <local import path> | <package import path>
-local import path := <path separator> <path content>
-package import path := <path content>
-path content := <path content start>* <path content end>
-path content start := <path name><path separator>
-path content end := <path name>
-path separator := <unique-utf8-char> | /
 ```
 
 abstraction related syntax: TODO specify imported abstractions syntax,
