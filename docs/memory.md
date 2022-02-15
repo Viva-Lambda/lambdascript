@@ -1,0 +1,109 @@
+# Memory Management Notes
+
+## Memory management: Algorithms and Implementations by Bill Blunden
+
+Memory management has two sides:
+
+- Mechanism: Provided by the processor
+- Policy: Provided by the operating system.
+
+Relying on the mechanism ties the operating system to
+a particular hardware. Relying entirely on
+the virtual memory is simply too slow.
+
+Random Access Memory (RAM), main memory or primary
+memory implies that the data inside them is lost,
+once the power is off.
+
+There are 4 types of RAM:
+
+- DRAM: Dynamic RAM recharged a lot of times each second
+- SDRAM: Synchronous DRAM is refreshed at the clock speed of the processor
+- SRAM: Static RAM is not recharged a lot like DRAM. It is mostly used in
+  processor caches.
+- VRAM: Video RAM, used by the video hardware, GPU etc.
+
+A *bit* is a single binary digit 0 or 1. In a RAM chip, it corresponds to a
+cell structure made up of certain configuration of transistors and capacitors.
+The configuration depends on the type of RAM. 
+A cell has two states, on that is 1, or off, that is 0.
+These cells are grouped into 8-bit units, called bytes.
+Byte is the fundamental unit for measuring the amount of memory
+provided by a storage device.
+
+The memory that is the data storage is not a unique feature to
+RAM. Depending on the proximity to the processor, one can 
+establish the following hierarchy:
+
+1. Registers
+2. Cache
+    - L1: Located on the processor itself.
+    - L2: is typically an SRAM chip outside of the processor
+3. RAM
+4. Disk storage
+
+The main distinction between these storage areas is their lag time
+or *memory latency*. Storage that is closer to processor takes less time
+to access, for example Registers are faster than Cache which is in turn
+faster than RAM, etc.
+
+Traditionally, disk space has been used to create
+*virtual memory*.
+Each byte, 8bit unit, has an associated integer. This integer is often
+referred as the *address* of the byte in DRAM.
+The *low memory* refers to the region near the 
+address 0. The *high memory* refers to the region near 
+the final address. The *physical address space* refers to the
+total number of physical bytes (in DRAM for example) that can
+be addressed by the processor. It represents a potential.
+The address of a byte is specified using address lines.
+Address lines are small wires that connect the processor
+to DRAM chip. Each line constitute a single bit in the 
+address of a byte. For example if we have 8 address lines,
+and a byte that is being addressed.
+The address has, 8 slots each composed of bit referring to
+an address line. For example an address like
+01101011 indicates that first address line is off,
+second is on, third is on, fourth is off, etc.
+
+To access and update the physical memory, the processor
+needs a control bus and a data bus. A *bus* is a collection of
+related wires that connect the processor to a hardware
+subsystem.
+The *control bus* indicates if the processor wants to read or
+write data to memory.
+The *data bus* does data transactions between the processor and 
+the physical memory.
+
+The reading from the memory occurs the following way:
+
+1. Processor places the address of the byte to be read 
+on the address lines.
+2. Processor sends the read signal via control bus.
+3. DRAM chip(s) return the byte specified on the data bus.
+
+The writing occurs the following way:
+
+1. Processor places the address of the byte to be written 
+on the address lines.
+2. Processor sends the write signal via control bus.
+3. Processor sends the byte to be written to memory on the data bus.
+
+Processors tend to support two memory management mechanisms as well:
+segmentation, and paging.
+Segmentation happens by breaking up the address space into
+specific regions, known as *segments*.
+This affords memory protection, where each application is assigned
+to at least one segment (large applications can be assigned to several
+segments).
+
+Segments are assigned to specific access writes so that the policies can
+be created with regard to who can update what. Typically, the 
+operating system code has the highest privilege and applications
+are loaded to segments with less authority.
+
+Paging is a way to implement virtual memory. The physical memory of DRAM
+combined with the disk storage creates an amorphous storage space. In this
+configuration, the total number of bytes that a processor is capable of
+addressing is known as *virtual address space*.
+
