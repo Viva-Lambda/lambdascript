@@ -543,6 +543,21 @@ This indicates that whatever type `A` is, it must be bound to concepts
 `Number` and `Collection`. Hence they indicate a constraint on the concept.
 
 
+In BNF form: TODO (binding not done)
+```
+concept declaration := <concept operator> <cname declaration> <concept body>
+cname declaration := <cname> <lpar> <dname> <rpar>
+concept body := <lpar> <abstraction list> <rpar>
+abstraction list := <generic abstraction>+
+generic abstraction := <abstraction declaration> | <generic declaration>
+generic declaration := <lpar> <abs name> <lpar> <dname>+ <rpar> <typename> <rpar>
+cname := <pascal case name>
+dname := <pascal case name>
+
+concept binding := <lpar> <bindop> <concept bind name> <concept bind body> <rpar>
+```
+
+
 ### Flow Statements
 
 Flows are bindings. They are essentially stitches that join computations.

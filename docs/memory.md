@@ -107,3 +107,11 @@ combined with the disk storage creates an amorphous storage space. In this
 configuration, the total number of bytes that a processor is capable of
 addressing is known as *virtual address space*.
 
+A *page* is a small region in the virtual memory space.
+
+An address in Intel assembly language is denoted by a segment:offset pair, for
+example: 0x800 : 0x100 where 0x800 is the segment, and 0x100 is the offset. 
+The offset is designates the value to add to the base address in order to
+obtain the location. Base address is the lowest address of a memory segment.
+
+p. 16, Segment addresses denote
