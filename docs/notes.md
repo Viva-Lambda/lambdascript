@@ -543,18 +543,53 @@ This indicates that whatever type `A` is, it must be bound to concepts
 `Number` and `Collection`. Hence they indicate a constraint on the concept.
 
 
-In BNF form: TODO (binding not done)
-```
-concept declaration := <concept operator> <cname declaration> <concept body>
-cname declaration := <cname> <lpar> <dname> <rpar>
-concept body := <lpar> <abstraction list> <rpar>
-abstraction list := <generic abstraction>+
-generic abstraction := <abstraction declaration> | <generic declaration>
-generic declaration := <lpar> <abs name> <lpar> <dname>+ <rpar> <typename> <rpar>
-cname := <pascal case name>
-dname := <pascal case name>
+In BNF form more or less done.
 
+Backticks in the notation are escape characters. +, \* holds their meaning in
+regex. `//` in bnf notation introduces comments
+
+```
+concept declaration := <lpar>
+                       <concept operator>
+                       <concept name declaration>
+                       <concept body declaration>
+                       <rpar>
+
+// operator declaration
+concept operator := `:|`
+
+// name declaration
+concept name declaration := <concept name> <concept arg declaration>
+concept name := <pascal case name>
+concept arg declaration := <lpar> <concept args> <rpar>
+concept args := <generic type name>
+              | <generic type name> <lpar> <type constraints> <rpar>
+generic type name := <pascal case name>
+type constraints := <concept name>+
+
+// body declaration
+concept body declaration := <lpar> <generic abstraction list> <rpar>
+generic abstraction list := <generic abstraction>+
+generic abstraction := <abstraction declaration> 
+                     | <generic type abstraction declaration>
+generic type abstraction declaration := <lpar> 
+                                        <abstraction operator>
+                                        <abstraction name>
+                                        <generic type indicator>
+                                        <rpar>
+generic type indicator := <type indicator>
+                        | <lpar> <generic type name>+ <rpar> <typename>
+
+// concept binding related notation
 concept binding := <lpar> <bindop> <concept bind name> <concept bind body> <rpar>
+concept bind name := <lpar> <type name> <rpar>
+concept bind body := <concept bound abstraction>+
+concept bound abstraction := <lpar> 
+                             <abstraction name>
+                             <lpar>
+                             <abstraction name>+
+                             <rpar>
+                             <rpar>
 ```
 
 

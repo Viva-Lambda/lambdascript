@@ -114,4 +114,75 @@ example: 0x800 : 0x100 where 0x800 is the segment, and 0x100 is the offset.
 The offset is designates the value to add to the base address in order to
 obtain the location. Base address is the lowest address of a memory segment.
 
-p. 16, Segment addresses denote
+Segment address specifies the base address, that is the lowest address of a
+memory segment. Other addresses inside the same memory segment are designated
+using an offset as seen above:
+
+Each segment register has a specific use: 
+
+CS: segment address of code that is being executed right now.
+SS: segment address of stack
+DS: segment address of data
+ES: Extra segment address (usually data)
+FS: Extra segment address (usually data)
+GS: Extra segment address (usually data)
+
+Six segment registers means, only six segments of memory can be manipulated. A
+program can use more than six segments, but only six of them is accessible to
+processor at a time.
+
+As we evolve into protected memory management the segment addresses are
+specified using specific data structures.
+
+Segment registers holds segment selectors.
+Segment selectors are 16 bit data structure containing three fields.
+It holds privilege of the memory segment, the descriptor table type, 
+and an index field.
+The important part is the index field.
+The index field points to the linear address after being processed by the
+processor.
+
+A descriptor table is an array. It contains segment descriptors. A segment
+descriptor describes the attributes of a specific memory segment whose base
+address is also contained inside the descriptor. 32-bit offset address is then
+added to this base address in order to find the address of a byte in memory.
+
+There are 2 descriptor tables:
+
+- Global descriptor table: Every operating system has one.
+Its base address is stored in GDTR system register.
+
+- Local descriptor table: It is optional. When it is used, it is used for
+  representing memory segments belonging to a specific process.
+
+
+GDTR is 48bit in size. The first 16 bit contains 
+the size limit of GDT, and the second 32 bit contains the base
+*linear address* of GDT in memory.
+
+When paging is not enabled, the linear address and physical address of a
+memory segment is same.
+
+A segment descriptor contains the following:
+
+- bunch of metadata: 
+    - segment limit
+    - default size
+    - privilege
+    - presence bit: 1 if segment is in memory 0 if it is not.
+    - etc
+
+- SS: system segment bit: 1 if it is, 0 if it is not.
+- segment type: 4 bits.
+    - data: contains bit combinations signaling different
+    states of data (accessible, read-only, etc)
+    - code: contains bit combinations signaling different 
+    states of code (execute-only, accessed, etc).
+
+Privilege indicators help processor determine
+memory violation.
+
+This helps to protect memory at the hardware level.
+
+p. 25 - I have not said much about the control registers. The only control
+register relevant to this current section is the CR0 control register.
