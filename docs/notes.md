@@ -1,5 +1,88 @@
 # Design Notes
 
+## Core of the lambdascript
+
+LambdaScript tries to be an implementation of following observations:
+
+- Language is a structured abstraction that can be transformed into set
+  of actions.
+
+- Structure indicates abstraction.
+
+- Abstraction is complexity in form.
+
+- Every expression has a type.
+
+- A form is an ordered set of signs. Change the order and you get a different
+  form. Change signs and you get a different visual.
+
+- An ordered entity consists of order signifier plus set of signs, unless it
+  inherits previously indicated order.
+
+- Data is a set of signs.
+
+- A sign is an ordered set of glyphs.
+
+- Action is a capacity by form.
+
+A
+let a = 1 + 2
+    b = 3 + 3
+    c = b + 5
+in c + b
+
+b -> c -> b + 5
+
+b'(c(b))
+
+A
+
+int b = 3 + 3 goto c
+
+int a = 1 + 2 goto b
+
+int c = b + 5 
+return b + c goto B
+
+b -> c -> b + c
+
+
+int a = 1 + 2 next
+int b = 3 + 3
+int c = b + 5
+return b + c goto B
+
+(< (2 1 +)a int $:)
+
+(>:$ int a(+ 1 2))
+
+
+        A                   B                  C 
++1<-----+--------   +-------+1-------  +1------+--------
+| +++++ | ===== |   | +++++ | ===== |  | +++++ | ===== |
+| $(o)  > p8569 |-> | $(6)  < 98569 |  | $(b)  > 22569 | ---+
+| ++p++ | ===== |   | ++p++ | ===== |  | ++p++ | ===== |    |
+-----------------   -----------------  -----------------    |
+                          |                  ^              |
+                          v D                |              |
+                    +1------+--------        |              |
+                    | +++++ | ===== |        |              |
+                    | $(6)  > 98569 | -------+              |    
+                    | ++p++ | ===== |                       |
+                    -----------------                       |
+                                                            |
+                                                            |
+                            E                               |
+                    +1------+--------                       |
+                    | +++++ | ===== |                       |
+                    | $(6)  > 98569 | <---------------------+
+                    | ++p++ | ===== |                  
+                    -----------------                  
+
+A => B => D => C => E
+
+1 -> 2
+
 ## Constructs of the language
 
 list: everything is a list in lambdascript. A list is usually delimited by '('

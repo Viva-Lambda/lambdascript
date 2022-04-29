@@ -184,5 +184,5 @@ memory violation.
 
 This helps to protect memory at the hardware level.
 
-p. 25 - I have not said much about the control registers. The only control
-register relevant to this current section is the CR0 control register.
+p. 31 - Paging as Protection
+
